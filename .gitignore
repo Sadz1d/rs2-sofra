@@ -1,0 +1,43 @@
+# secrets
+.env
+*.env
+!.env.example
+.env-tajne.zip
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+TestResults/
+publish/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+**/.idea/
+**/*.iml
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/windows/flutter/ephemeral/
+**/ios/
+**/macos/
+**/linux/
+**/web/
+
+# uploads (seed slike se commit-aju, uploadi ne)
+Sofra.API/wwwroot/images/uploads/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
+fit-build-*.zip

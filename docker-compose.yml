@@ -1,0 +1,87 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest   # tag "2022-latest" = zadnji CU za SQL Server 2022 (verzionisan po godini)
+    container_name: sofra-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQL_SA_PASSWORD}
+      MSSQL_PID: Developer
+    ports:
+      - "${SQL_PORT:-1433}:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [sofra]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: sofra-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"          # management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [sofra]
+
+  api:
+    build:
+      context: .
+      dockerfile: Sofra.API/Dockerfile
+    container_name: sofra-api
+    env_file: .env
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      # unutar compose mreže servisi se zovu po imenu — override vrijednosti iz .env koje pokazuju na localhost
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${SQL_DATABASE};User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      RabbitMq__Host: rabbitmq
+    ports:
+      - "${API_PORT:-5000}:8080"
+    volumes:
+      - apiuploads:/app/wwwroot/images/uploads
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [sofra]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Sofra.Worker/Dockerfile
+    container_name: sofra-worker
+    env_file: .env
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${SQL_DATABASE};User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      RabbitMq__Host: rabbitmq
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks: [sofra]
+
+volumes:
+  sqldata:
+  apiuploads:
+
+networks:
+  sofra:
+    driver: bridge
