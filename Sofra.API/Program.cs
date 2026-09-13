@@ -1,5 +1,7 @@
 using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Sofra.API.Data;
 using Sofra.API.Middleware;
 using Sofra.API.Options;
 
@@ -62,6 +64,9 @@ builder.Services.AddCors(options =>
         .AllowCredentials());
 });
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -74,6 +79,12 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseSerilogRequestLogging();
