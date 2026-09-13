@@ -1,0 +1,22 @@
+# .NET build artefakti — generišu se iznova unutar kontejnera; lokalni sadrže apsolutne Windows putanje
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+
+# logovi
+**/logs/
+
+# Flutter aplikacije — ne trebaju API/Worker build kontekstu
+sofra_desktop/
+sofra_mobile/
+
+# git i dokumentacija
+.git/
+.github/
+docs/
+*.md
+
+# tajne
+.env
+.env-tajne.zip
