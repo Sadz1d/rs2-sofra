@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Sofra.API/Sofra.API.csproj" />
+  <Project Path="Sofra.Shared/Sofra.Shared.csproj" />
+  <Project Path="Sofra.Worker/Sofra.Worker.csproj" />
+</Solution>

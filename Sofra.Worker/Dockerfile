@@ -1,7 +1,7 @@
 # ---------- build ----------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY Sofra.sln ./
+COPY Sofra.slnx ./
 COPY Sofra.Shared/Sofra.Shared.csproj Sofra.Shared/
 COPY Sofra.Worker/Sofra.Worker.csproj Sofra.Worker/
 RUN dotnet restore Sofra.Worker/Sofra.Worker.csproj

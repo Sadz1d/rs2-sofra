@@ -1,7 +1,7 @@
 # ---------- build ----------
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY Sofra.sln ./
+COPY Sofra.slnx ./
 COPY Sofra.Shared/Sofra.Shared.csproj Sofra.Shared/
 COPY Sofra.API/Sofra.API.csproj Sofra.API/
 RUN dotnet restore Sofra.API/Sofra.API.csproj

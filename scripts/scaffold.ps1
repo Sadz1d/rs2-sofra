@@ -7,7 +7,7 @@ dotnet new sln -n Sofra
 dotnet new classlib -n Sofra.Shared -f net10.0 --force
 dotnet new webapi  -n Sofra.API    -f net10.0 --use-controllers --force
 dotnet new worker  -n Sofra.Worker -f net10.0 --force
-dotnet sln Sofra.sln add Sofra.Shared/Sofra.Shared.csproj Sofra.API/Sofra.API.csproj Sofra.Worker/Sofra.Worker.csproj
+dotnet sln Sofra.slnx add Sofra.Shared/Sofra.Shared.csproj Sofra.API/Sofra.API.csproj Sofra.Worker/Sofra.Worker.csproj
 dotnet add Sofra.API/Sofra.API.csproj    reference Sofra.Shared/Sofra.Shared.csproj
 dotnet add Sofra.Worker/Sofra.Worker.csproj reference Sofra.Shared/Sofra.Shared.csproj
 
