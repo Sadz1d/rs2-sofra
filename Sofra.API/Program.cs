@@ -137,6 +137,10 @@ builder.Services.AddScoped<IAllergenService, AllergenService>();
 builder.Services.AddScoped<IDietaryTagService, DietaryTagService>();
 builder.Services.AddScoped<ITableTypeService, TableTypeService>();
 builder.Services.AddScoped<IInventoryCategoryService, InventoryCategoryService>();
+builder.Services.AddScoped<IZoneService, ZoneService>();
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+builder.Services.AddScoped<IUnitOfMeasureService, UnitOfMeasureService>();
+builder.Services.AddScoped<ICountryService, CountryService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
