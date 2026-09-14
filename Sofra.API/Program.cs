@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Sofra.API.Constants;
 using Sofra.API.Data;
+using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Filters;
 using Sofra.API.Identity;
@@ -135,6 +136,26 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
+
+// [ApiController] automatski vraca RFC7807 ValidationProblemDetails na 400 kad model binding
+// (npr. neispravan JSON ili pogresan tip polja) padne prije nego ValidationFilter uopste dobije priliku.
+// Ovdje ga preusmjeravamo na isti ErrorResponse oblik (422) koji koristi ValidationException,
+// da Flutter forme uvijek dobiju identičnu strukturu bez obzira gdje je validacija pukla.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value is { Errors.Count: > 0 })
+            .ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
+
+        var response = new ErrorResponse("Jedan ili više unesenih podataka nisu ispravni.", errors);
+        return new Microsoft.AspNetCore.Mvc.UnprocessableEntityObjectResult(response);
+    };
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
