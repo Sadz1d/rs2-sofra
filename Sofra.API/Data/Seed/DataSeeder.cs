@@ -30,6 +30,9 @@ public partial class DataSeeder(
         await SeedMenuAsync(cancellationToken);
         await SeedDiningTablesAsync(cancellationToken);
         await SeedHistoricalDataAsync(cancellationToken);
+        await SeedPromotionsAsync(cancellationToken);
+        await SeedNewsAsync(cancellationToken);
+        await SeedNotificationsAsync(cancellationToken);
     }
 
     private async Task SeedRolesAsync()
