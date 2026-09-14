@@ -133,6 +133,10 @@ builder.Services.AddSingleton<IJtiDenylistService, JtiDenylistService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<Sofra.API.Data.Seed.DataSeeder>();
 builder.Services.AddScoped<IMenuCategoryService, MenuCategoryService>();
+builder.Services.AddScoped<IAllergenService, AllergenService>();
+builder.Services.AddScoped<IDietaryTagService, DietaryTagService>();
+builder.Services.AddScoped<ITableTypeService, TableTypeService>();
+builder.Services.AddScoped<IInventoryCategoryService, InventoryCategoryService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
