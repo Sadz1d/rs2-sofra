@@ -5,6 +5,7 @@ namespace Sofra.API.Entities;
 public class Order
 {
     public int Id { get; set; }
+    public DateTime CreatedAt { get; set; }
     public string Number { get; set; } = string.Empty;
     public int UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;

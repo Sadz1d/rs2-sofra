@@ -5,6 +5,7 @@ namespace Sofra.API.Entities;
 public class Reservation
 {
     public int Id { get; set; }
+    public DateTime CreatedAt { get; set; }
     public int UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;
     public DateTime ReservationAt { get; set; }
