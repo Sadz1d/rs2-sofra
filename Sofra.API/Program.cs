@@ -132,6 +132,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddSingleton<IJtiDenylistService, JtiDenylistService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<Sofra.API.Data.Seed.DataSeeder>();
+builder.Services.AddScoped<IMenuCategoryService, MenuCategoryService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 

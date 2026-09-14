@@ -26,4 +26,8 @@ public abstract class PagedRequest
     }
 
     public string? Search { get; set; }
+
+    public string? SortBy { get; set; }
+
+    public bool SortDesc { get; set; }
 }
