@@ -15,9 +15,11 @@ public class MenuItemDietaryTagConfiguration : IEntityTypeConfiguration<MenuItem
             .HasForeignKey(x => x.MenuItemId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Restrict (ne Cascade): brisanje oznake koja se koristi mora biti eksplicitno blokirano
+        // u servisu s jasnom porukom, ne tiho obrisati vezu sa jelima.
         builder.HasOne(x => x.DietaryTag)
             .WithMany()
             .HasForeignKey(x => x.DietaryTagId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

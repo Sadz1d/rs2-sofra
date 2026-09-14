@@ -1,119 +1,63 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Sofra.API.Data;
-using Sofra.API.DTOs;
 using Sofra.API.DTOs.Catalog;
 using Sofra.API.Entities;
 using Sofra.API.Exceptions;
+using Sofra.API.Requests;
 using Sofra.API.Requests.Catalog;
 using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class MenuCategoryService(AppDbContext dbContext) : IMenuCategoryService
+public class MenuCategoryService(AppDbContext dbContext)
+    : LookupService<MenuCategory, MenuCategoryResponse, MenuCategoryRequest>(dbContext), IMenuCategoryService
 {
-    public async Task<PagedResult<MenuCategoryResponse>> GetListAsync(MenuCategoryListRequest request, CancellationToken cancellationToken = default)
+    protected override DbSet<MenuCategory> Set => DbContext.MenuCategories;
+
+    protected override string EntityLabel => "Kategorija jela";
+
+    protected override Expression<Func<MenuCategory, MenuCategoryResponse>> ProjectToResponse =>
+        x => new MenuCategoryResponse(x.Id, x.Name, x.Description, x.SortOrder, x.ImageUrl, x.IsActive);
+
+    protected override IQueryable<MenuCategory> ApplyExtraFilters(IQueryable<MenuCategory> query, PagedRequest request) =>
+        request is MenuCategoryListRequest { IsActive: not null } r ? query.Where(x => x.IsActive == r.IsActive) : query;
+
+    protected override MenuCategory CreateEntity(MenuCategoryRequest request) => new()
     {
-        var query = dbContext.MenuCategories.AsNoTracking().AsQueryable();
+        Name = request.Name,
+        Description = request.Description,
+        SortOrder = request.SortOrder,
+        ImageUrl = request.ImageUrl,
+        IsActive = request.IsActive,
+    };
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
-        {
-            query = query.Where(x => x.Name.Contains(request.Search));
-        }
-
-        query = ApplySort(query, request.SortBy, request.SortDesc);
-
-        var responseQuery = query.Select(x => new MenuCategoryResponse(x.Id, x.Name, x.Description, x.SortOrder, x.ImageUrl, x.IsActive));
-
-        return await responseQuery.ToPagedResultAsync(request, cancellationToken);
+    protected override void UpdateEntity(MenuCategory entity, MenuCategoryRequest request)
+    {
+        entity.Name = request.Name;
+        entity.Description = request.Description;
+        entity.SortOrder = request.SortOrder;
+        entity.ImageUrl = request.ImageUrl;
+        entity.IsActive = request.IsActive;
     }
 
-    public async Task<MenuCategoryResponse> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    protected override async Task EnsureUniqueAsync(MenuCategoryRequest request, int? excludeId, CancellationToken cancellationToken)
     {
-        var category = await dbContext.MenuCategories.AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new MenuCategoryResponse(x.Id, x.Name, x.Description, x.SortOrder, x.ImageUrl, x.IsActive))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return category ?? throw new NotFoundException($"Kategorija jela sa Id {id} ne postoji.");
-    }
-
-    public async Task<MenuCategoryResponse> CreateAsync(MenuCategoryRequest request, CancellationToken cancellationToken = default)
-    {
-        await EnsureUniqueNameAsync(request.Name, excludeId: null, cancellationToken);
-
-        var category = new MenuCategory
-        {
-            Name = request.Name,
-            Description = request.Description,
-            SortOrder = request.SortOrder,
-            ImageUrl = request.ImageUrl,
-            IsActive = request.IsActive,
-        };
-
-        dbContext.MenuCategories.Add(category);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return new MenuCategoryResponse(category.Id, category.Name, category.Description, category.SortOrder, category.ImageUrl, category.IsActive);
-    }
-
-    public async Task<MenuCategoryResponse> UpdateAsync(int id, MenuCategoryRequest request, CancellationToken cancellationToken = default)
-    {
-        var category = await dbContext.MenuCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new NotFoundException($"Kategorija jela sa Id {id} ne postoji.");
-
-        await EnsureUniqueNameAsync(request.Name, excludeId: id, cancellationToken);
-
-        category.Name = request.Name;
-        category.Description = request.Description;
-        category.SortOrder = request.SortOrder;
-        category.ImageUrl = request.ImageUrl;
-        category.IsActive = request.IsActive;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return new MenuCategoryResponse(category.Id, category.Name, category.Description, category.SortOrder, category.ImageUrl, category.IsActive);
-    }
-
-    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
-    {
-        var category = await dbContext.MenuCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw new NotFoundException($"Kategorija jela sa Id {id} ne postoji.");
-
-        var usageCount = await dbContext.MenuItems.CountAsync(x => x.MenuCategoryId == id, cancellationToken);
-        if (usageCount > 0)
-        {
-            var noun = BosnianPluralizer.Pluralize(usageCount, "jelo", "jela", "jela");
-            throw new BusinessException($"Kategorija '{category.Name}' se ne može obrisati jer je koristi {usageCount} {noun}.");
-        }
-
-        dbContext.MenuCategories.Remove(category);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task EnsureUniqueNameAsync(string name, int? excludeId, CancellationToken cancellationToken)
-    {
-        var exists = await dbContext.MenuCategories
-            .AnyAsync(x => x.Name == name && (excludeId == null || x.Id != excludeId), cancellationToken);
+        var exists = await DbContext.MenuCategories
+            .AnyAsync(x => x.Name == request.Name && (excludeId == null || x.Id != excludeId), cancellationToken);
 
         if (exists)
         {
             throw new ValidationException(new Dictionary<string, string[]>
             {
-                ["Name"] = [$"Kategorija sa nazivom '{name}' već postoji."],
+                ["Name"] = [$"Kategorija sa nazivom '{request.Name}' već postoji."],
             });
         }
     }
 
-    private static IQueryable<MenuCategory> ApplySort(IQueryable<MenuCategory> query, string? sortBy, bool descending)
+    protected override async Task<LookupUsage> GetUsageAsync(int id, CancellationToken cancellationToken)
     {
-        Expression<Func<MenuCategory, object>> keySelector = sortBy?.ToLowerInvariant() switch
-        {
-            "sortorder" => x => x.SortOrder,
-            "isactive" => x => x.IsActive,
-            _ => x => x.Name,
-        };
-
-        return descending ? query.OrderByDescending(keySelector) : query.OrderBy(keySelector);
+        var count = await DbContext.MenuItems.CountAsync(x => x.MenuCategoryId == id, cancellationToken);
+        return new LookupUsage(count, "jelo", "jela", "jela");
     }
 }

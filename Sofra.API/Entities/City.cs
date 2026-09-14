@@ -1,6 +1,6 @@
 namespace Sofra.API.Entities;
 
-public class City
+public class City : INamedEntity
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

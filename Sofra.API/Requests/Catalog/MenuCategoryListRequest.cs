@@ -1,3 +1,6 @@
 namespace Sofra.API.Requests.Catalog;
 
-public class MenuCategoryListRequest : PagedRequest;
+public class MenuCategoryListRequest : LookupListRequest
+{
+    public bool? IsActive { get; set; }
+}
