@@ -166,18 +166,23 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
     });
 
-    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    options.AddSecurityDefinition("bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = Microsoft.OpenApi.SecuritySchemeType.Http,
-        Scheme = "Bearer",
+        Scheme = "bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.ParameterLocation.Header,
         Description = "Unesite JWT access token (bez 'Bearer ' prefiksa).",
     });
-    options.AddSecurityRequirement(_ => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    // IOperationFilter ne radi ovdje: OperationFilterContext nema pristup OpenApiDocument-u koji se
+    // gradi, pa se OpenApiSecuritySchemeReference ne moze ispravno povezati (poznat, nerazrijesen bug
+    // u Swashbuckle 10 + OpenAPI.NET v2 - https://github.com/domaindrivendev/Swashbuckle.AspNetCore/issues/3731).
+    // Zato je requirement globalan (lokot i na anonimnim endpointima poput /api/auth/login), ali
+    // referenca je ispravna jer lambda dobija stvarni document.
+    options.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
     {
-        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", null)] = new List<string>(),
+        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("bearer", document)] = [],
     });
 });
 
