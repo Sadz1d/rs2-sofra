@@ -13,7 +13,7 @@ namespace Sofra.API.Data.Seed;
 /// Korisnici se kreiraju iskljucivo preko UserManager-a, isti mehanizam kao i obicna registracija,
 /// pa je hash lozinke uvijek u istom (Identity PBKDF2) formatu.
 /// </summary>
-public class DataSeeder(
+public partial class DataSeeder(
     AppDbContext dbContext,
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<int>> roleManager,
@@ -26,8 +26,9 @@ public class DataSeeder(
     {
         await SeedRolesAsync();
         await SeedUsersAsync(cancellationToken);
+        await SeedReferenceDataAsync(cancellationToken);
 
-        // Sljedece grupe (sifarnici, jela, stolovi/namirnice, istorijski podaci) dodaju se ovdje.
+        // Sljedece grupe (jela, stolovi/namirnice, istorijski podaci) dodaju se ovdje.
     }
 
     private async Task SeedRolesAsync()
