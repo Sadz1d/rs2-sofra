@@ -200,6 +200,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseStaticFiles();
 app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();

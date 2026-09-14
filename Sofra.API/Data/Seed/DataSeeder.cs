@@ -27,8 +27,9 @@ public partial class DataSeeder(
         await SeedRolesAsync();
         await SeedUsersAsync(cancellationToken);
         await SeedReferenceDataAsync(cancellationToken);
+        await SeedMenuAsync(cancellationToken);
 
-        // Sljedece grupe (jela, stolovi/namirnice, istorijski podaci) dodaju se ovdje.
+        // Sljedece grupe (stolovi, istorijski podaci) dodaju se ovdje.
     }
 
     private async Task SeedRolesAsync()
