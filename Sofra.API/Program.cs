@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using Sofra.API.Constants;
 using Sofra.API.Data;
 using Sofra.API.DTOs;
 using Sofra.API.Entities;
@@ -132,6 +131,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddSingleton<IJtiDenylistService, JtiDenylistService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<Sofra.API.Data.Seed.DataSeeder>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -187,14 +187,8 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.MigrateAsync();
 
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<int>>>();
-    foreach (var role in Roles.All)
-    {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            await roleManager.CreateAsync(new IdentityRole<int>(role));
-        }
-    }
+    var seeder = scope.ServiceProvider.GetRequiredService<Sofra.API.Data.Seed.DataSeeder>();
+    await seeder.SeedAsync();
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
