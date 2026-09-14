@@ -29,8 +29,7 @@ public partial class DataSeeder(
         await SeedReferenceDataAsync(cancellationToken);
         await SeedMenuAsync(cancellationToken);
         await SeedDiningTablesAsync(cancellationToken);
-
-        // Sljedeca grupa (istorijski podaci) dodaje se ovdje.
+        await SeedHistoricalDataAsync(cancellationToken);
     }
 
     private async Task SeedRolesAsync()
