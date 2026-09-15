@@ -168,6 +168,7 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddSingleton<RabbitMqConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
