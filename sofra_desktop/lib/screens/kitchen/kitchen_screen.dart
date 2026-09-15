@@ -257,16 +257,20 @@ class _UrgencyClockState extends State<_UrgencyClock> {
   @override
   Widget build(BuildContext context) {
     final elapsed = DateTime.now().difference(widget.since);
-    final minutes = elapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
     final color = _UrgencyClock.colorFor(widget.since);
+
+    // MM:SS dok traje uzivo tikanje ima smisla samo unutar jednog sata cekanja;
+    // preko toga prelazi na Xh Ymin da ne prikazuje zavaravajuce "omotane" vrijednosti.
+    final label = elapsed.inHours >= 1
+        ? '${elapsed.inHours}h ${elapsed.inMinutes.remainder(60)}min'
+        : '${elapsed.inMinutes.toString().padLeft(2, '0')}:${elapsed.inSeconds.remainder(60).toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.access_time, size: 14, color: color),
         const SizedBox(width: 4),
-        Text('$minutes:$seconds', style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
       ],
     );
   }

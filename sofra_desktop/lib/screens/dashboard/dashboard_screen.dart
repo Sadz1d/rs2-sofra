@@ -2,7 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../constants/roles.dart';
 import '../../models/reservation_status.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../theme/app_theme.dart';
@@ -20,11 +22,14 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  bool get _isAdmin =>
+      context.read<AuthProvider>().currentUser?.roles.contains(Roles.admin) ?? false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().loadAll();
+      context.read<DashboardProvider>().loadAll(isAdmin: _isAdmin);
       context.read<OrdersProvider>().loadBoard();
     });
   }
@@ -33,16 +38,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardProvider>();
 
-    if (dashboard.loading && dashboard.chartData.isEmpty && dashboard.error == null) {
+    if (dashboard.loading && dashboard.error == null && dashboard.reservationsTodayPreview.isEmpty) {
       return const LoadingView(message: 'Učitavanje pregleda...');
     }
 
     if (dashboard.error != null) {
       return ErrorView(
         message: dashboard.error!,
-        onRetry: () => context.read<DashboardProvider>().loadAll(),
+        onRetry: () => context.read<DashboardProvider>().loadAll(isAdmin: _isAdmin),
       );
     }
+
+    final showRevenue = dashboard.canSeeRevenue;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -52,15 +59,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _KpiRow(dashboard: dashboard),
+              _KpiRow(dashboard: dashboard, showRevenue: showRevenue),
               const SizedBox(height: 20),
               if (isWide)
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(flex: 3, child: _RevenueChartCard(dashboard: dashboard)),
-                      const SizedBox(width: 20),
+                      if (showRevenue) ...[
+                        Expanded(flex: 3, child: _RevenueChartCard(dashboard: dashboard)),
+                        const SizedBox(width: 20),
+                      ],
                       Expanded(
                         flex: 2,
                         child: Column(
@@ -77,8 +86,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Column(
                           children: [
                             _LowStockCard(dashboard: dashboard),
-                            const SizedBox(height: 20),
-                            _TopItemsTodayCard(dashboard: dashboard),
+                            if (showRevenue) ...[
+                              const SizedBox(height: 20),
+                              _TopItemsTodayCard(dashboard: dashboard),
+                            ],
                           ],
                         ),
                       ),
@@ -88,15 +99,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               else
                 Column(
                   children: [
-                    _RevenueChartCard(dashboard: dashboard),
-                    const SizedBox(height: 20),
+                    if (showRevenue) ...[
+                      _RevenueChartCard(dashboard: dashboard),
+                      const SizedBox(height: 20),
+                    ],
                     const _ActiveOrdersCard(),
                     const SizedBox(height: 20),
                     _ReservationsTodayCard(dashboard: dashboard),
                     const SizedBox(height: 20),
                     _LowStockCard(dashboard: dashboard),
-                    const SizedBox(height: 20),
-                    _TopItemsTodayCard(dashboard: dashboard),
+                    if (showRevenue) ...[
+                      const SizedBox(height: 20),
+                      _TopItemsTodayCard(dashboard: dashboard),
+                    ],
                   ],
                 ),
             ],
@@ -108,9 +123,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _KpiRow extends StatelessWidget {
-  const _KpiRow({required this.dashboard});
+  const _KpiRow({required this.dashboard, required this.showRevenue});
 
   final DashboardProvider dashboard;
+  final bool showRevenue;
 
   @override
   Widget build(BuildContext context) {
@@ -127,20 +143,22 @@ class _KpiRow extends StatelessWidget {
         final cardWidth = (constraints.maxWidth - (columns - 1) * 16) / columns;
 
         final cards = [
-          StatCard(
-            title: 'Promet danas',
-            value: formatMoney(dashboard.revenueToday),
-            subtitle: '$deltaSign${dashboard.revenueDeltaPercent.toStringAsFixed(0)} % vs jučer',
-            icon: Icons.trending_up,
-            iconColor: AppColors.primary,
-          ),
-          StatCard(
-            title: 'Narudžbe danas',
-            value: formatInt(dashboard.ordersToday),
-            subtitle: '$ordersDeltaSign${dashboard.ordersDelta}',
-            icon: Icons.receipt_long_outlined,
-            iconColor: Colors.blue,
-          ),
+          if (showRevenue) ...[
+            StatCard(
+              title: 'Promet danas',
+              value: formatMoney(dashboard.revenueToday),
+              subtitle: '$deltaSign${dashboard.revenueDeltaPercent.toStringAsFixed(0)} % vs jučer',
+              icon: Icons.trending_up,
+              iconColor: AppColors.primary,
+            ),
+            StatCard(
+              title: 'Narudžbe danas',
+              value: formatInt(dashboard.ordersToday),
+              subtitle: '$ordersDeltaSign${dashboard.ordersDelta}',
+              icon: Icons.receipt_long_outlined,
+              iconColor: Colors.blue,
+            ),
+          ],
           StatCard(
             title: 'Rezervacije danas',
             value: formatInt(dashboard.reservationsTodayCount),

@@ -36,8 +36,10 @@ class OrderWorkflow {
     ],
   };
 
-  /// Sve dozvoljene sljedece statuse iz [current] za korisnika sa [roles], sa razlogom
-  /// zasto je otkazivanje (ako je ponudjeno) onemoguceno kad je narudzba vec placena.
+  /// Prelazi za koje korisnikova uloga ima ovlasenje - prelaz za koji uloga NEMA
+  /// ovlascenje se uopste ne vraca (ne nudi se ni onemoguceno dugme). Jedini prikaz
+  /// onemogucenog dugmeta je otkazivanje vec placene narudzbe (poslovno pravilo, ne
+  /// pitanje uloge) - tu je dugme namjerno vidljivo ali onemoguceno, s objasnjenjem.
   static List<OrderTransitionOption> nextOptions(
     OrderStatus current,
     List<String> roles, {
@@ -46,14 +48,15 @@ class OrderWorkflow {
     final transitions = _graph[current] ?? const [];
     return [
       for (final t in transitions)
-        OrderTransitionOption(
-          to: t.to,
-          label: _actionLabel(t.to),
-          allowed: t.roles.any(roles.contains) && !(t.to == OrderStatus.cancelled && isPaid),
-          disabledReason: t.to == OrderStatus.cancelled && isPaid
-              ? 'Plaćena narudžba se ne može otkazati bez povrata sredstava.'
-              : null,
-        ),
+        if (t.roles.any(roles.contains))
+          OrderTransitionOption(
+            to: t.to,
+            label: _actionLabel(t.to),
+            allowed: !(t.to == OrderStatus.cancelled && isPaid),
+            disabledReason: t.to == OrderStatus.cancelled && isPaid
+                ? 'Plaćena narudžba se ne može otkazati bez povrata sredstava.'
+                : null,
+          ),
     ];
   }
 
@@ -66,11 +69,6 @@ class OrderWorkflow {
       }
     }
     return null;
-  }
-
-  static bool canCancel(OrderStatus current, List<String> roles, {required bool isPaid}) {
-    final transitions = _graph[current] ?? const [];
-    return transitions.any((t) => t.to == OrderStatus.cancelled && t.roles.any(roles.contains));
   }
 
   static String _actionLabel(OrderStatus to) => switch (to) {

@@ -50,18 +50,23 @@ class DashboardProvider extends ChangeNotifier {
 
   double get tableOccupancyPercent => tablesTotal == 0 ? 0 : (tablesOccupied / tablesTotal) * 100;
 
-  Future<void> loadAll() async {
+  /// /api/statistics/* je Admin-only na backendu - Konobar/Kuhar dobijaju manji dashboard
+  /// bez prometa/top jela umjesto da cijeli ekran padne na 403.
+  bool canSeeRevenue = false;
+
+  Future<void> loadAll({required bool isAdmin}) async {
+    canSeeRevenue = isAdmin;
     loading = true;
     error = null;
     notifyListeners();
     try {
       await Future.wait([
-        _loadRevenueKpis(),
+        if (isAdmin) _loadRevenueKpis(),
         _loadReservationsToday(),
         _loadTableOccupancy(),
         _loadLowStock(),
-        _loadTopItemsToday(),
-        _loadChart(),
+        if (isAdmin) _loadTopItemsToday(),
+        if (isAdmin) _loadChart(),
       ]);
     } catch (e) {
       error = e is ApiException ? e.message : 'Došlo je do greške pri učitavanju pregleda.';
