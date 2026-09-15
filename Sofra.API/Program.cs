@@ -146,6 +146,7 @@ builder.Services.AddScoped<IMenuItemService, MenuItemService>();
 builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 builder.Services.AddScoped<IDiningTableService, DiningTableService>();
 builder.Services.AddScoped<IInventoryItemService, InventoryItemService>();
+builder.Services.AddScoped<IOrderStateMachine, OrderStateMachine>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
