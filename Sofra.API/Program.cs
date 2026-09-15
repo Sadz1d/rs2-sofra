@@ -195,6 +195,7 @@ builder.Services.AddScoped<IShiftService, ShiftService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 
 builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
 builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
