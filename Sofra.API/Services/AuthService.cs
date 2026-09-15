@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -9,6 +11,7 @@ using Sofra.API.Exceptions;
 using Sofra.API.Options;
 using Sofra.API.Requests.Auth;
 using Sofra.API.Services.Interfaces;
+using Sofra.Shared.Events;
 
 namespace Sofra.API.Services;
 
@@ -17,9 +20,11 @@ public class AuthService(
     AppDbContext dbContext,
     ITokenService tokenService,
     IJtiDenylistService jtiDenylistService,
+    IEventPublisher eventPublisher,
     IOptions<JwtOptions> jwtOptions) : IAuthService
 {
     private readonly JwtOptions _jwtOptions = jwtOptions.Value;
+    private static readonly TimeSpan ResetCodeLifetime = TimeSpan.FromMinutes(15);
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
@@ -111,6 +116,81 @@ public class AuthService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null || !user.IsActive)
+        {
+            // Namjerno isti (prazan) odgovor bez obzira postoji li korisnik - ne otkriva se koji e-mail je registrovan.
+            return;
+        }
+
+        var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        var expiresAt = DateTime.UtcNow.Add(ResetCodeLifetime);
+
+        dbContext.PasswordResetCodes.Add(new PasswordResetCode
+        {
+            UserId = user.Id,
+            CodeHash = HashCode(code),
+            ExpiresAt = expiresAt,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Objavljivanje ide tek nakon uspjesnog SaveChangesAsync, nikad unutar transakcije.
+        await eventPublisher.PublishAsync(
+            new PasswordResetRequestedEvent(
+                Guid.NewGuid(), DateTime.UtcNow,
+                user.Id, user.Email ?? string.Empty, $"{user.FirstName} {user.LastName}", code, expiresAt),
+            EventRoutingKeys.PasswordResetRequested,
+            cancellationToken);
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByEmailAsync(request.Email);
+        var codeHash = HashCode(request.Code);
+
+        var resetCode = user is null
+            ? null
+            : await dbContext.PasswordResetCodes
+                .Where(x => x.UserId == user.Id && x.CodeHash == codeHash && x.UsedAt == null && x.ExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (user is null || !user.IsActive || resetCode is null)
+        {
+            throw new BusinessException("Kod je nevažeći ili je istekao.");
+        }
+
+        var removeResult = await userManager.RemovePasswordAsync(user);
+        if (!removeResult.Succeeded)
+        {
+            throw new ValidationException(ToErrorDictionary(removeResult));
+        }
+
+        var addResult = await userManager.AddPasswordAsync(user, request.NewPassword);
+        if (!addResult.Succeeded)
+        {
+            throw new ValidationException(ToErrorDictionary(addResult));
+        }
+
+        resetCode.UsedAt = DateTime.UtcNow;
+
+        // Stare sesije ne smiju ostati validne nakon reseta lozinke.
+        var activeRefreshTokens = await dbContext.RefreshTokens
+            .Where(x => x.UserId == user.Id && x.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (var token in activeRefreshTokens)
+        {
+            token.RevokedAt = DateTime.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string HashCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
     private async Task<AuthResponse> IssueTokensAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
