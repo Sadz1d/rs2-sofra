@@ -58,6 +58,11 @@ public class ReservationService(
             query = query.Where(x => x.ReservationAt <= request.DateTo);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            query = query.Where(x => x.User.FirstName.Contains(request.Search) || x.User.LastName.Contains(request.Search));
+        }
+
         query = request.SortDesc ? query.OrderByDescending(x => x.ReservationAt) : query.OrderBy(x => x.ReservationAt);
 
         var projected = query.Select(x => new ReservationListItemResponse(
