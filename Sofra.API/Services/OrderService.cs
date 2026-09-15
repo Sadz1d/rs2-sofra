@@ -79,7 +79,7 @@ public class OrderService(
         return await projected.ToPagedResultAsync(request, cancellationToken);
     }
 
-    public async Task<OrderResponse> GetByIdAsync(int id, int actorUserId, bool isStaff, CancellationToken cancellationToken = default)
+    public async Task<OrderResponse> GetByIdAsync(int id, int actorUserId, IReadOnlyCollection<string> actorRoles, bool isStaff, CancellationToken cancellationToken = default)
     {
         var order = await LoadDetailedAsync(id, cancellationToken)
             ?? throw new NotFoundException($"Narudžba sa Id {id} ne postoji.");
@@ -89,7 +89,7 @@ public class OrderService(
             throw new ForbiddenException("Ne možete pregledati tuđu narudžbu.");
         }
 
-        return ToResponse(order);
+        return ToResponse(order, stateMachine.GetAllowedTransitions(order, actorUserId, actorRoles));
     }
 
     public async Task<OrderQuoteResponse> QuoteAsync(PlaceOrderRequest request, int actorUserId, CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public class OrderService(
             calc.Items.Select(x => new OrderQuoteItemResponse(x.MenuItem.Id, x.MenuItem.Name, x.Quantity, x.MenuItem.Price, x.MenuItem.Price * x.Quantity)).ToList());
     }
 
-    public async Task<OrderResponse> CreateAsync(PlaceOrderRequest request, int actorUserId, CancellationToken cancellationToken = default)
+    public async Task<OrderResponse> CreateAsync(PlaceOrderRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
         var calc = await BuildCalculationAsync(request, actorUserId, cancellationToken);
 
@@ -154,7 +154,7 @@ public class OrderService(
         await orderHub.Clients.Group("staff").SendAsync(
             "orderCreated", new OrderCreatedMessage(order.Id, order.Number, diningTableNumber), cancellationToken);
 
-        return await GetByIdAsync(order.Id, actorUserId, isStaff: true, cancellationToken);
+        return await GetByIdAsync(order.Id, actorUserId, actorRoles, isStaff: true, cancellationToken);
     }
 
     public async Task<OrderResponse> TransitionAsync(int id, OrderTransitionRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
@@ -191,7 +191,7 @@ public class OrderService(
             await orderHub.Clients.Group("kitchen").SendAsync("orderStatusChanged", orderStatusMessage, cancellationToken);
         }
 
-        return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
+        return await GetByIdAsync(id, actorUserId, actorRoles, isStaff: true, cancellationToken);
     }
 
     private sealed record CalcItem(MenuItem MenuItem, int Quantity, string? Note);
@@ -299,7 +299,7 @@ public class OrderService(
             .Include(x => x.Payment).ThenInclude(x => x!.PaymentMethod)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    private static OrderResponse ToResponse(Order order) => new(
+    private static OrderResponse ToResponse(Order order, IReadOnlyList<AllowedTransition> allowedTransitions) => new(
         order.Id, order.Number, order.Type, order.Status,
         order.UserId, order.User.FirstName + " " + order.User.LastName,
         order.DiningTableId, order.DiningTable?.Number,
@@ -310,5 +310,6 @@ public class OrderService(
         order.Payment?.Status == PaymentStatus.Succeeded, order.Payment?.PaymentMethod.Name,
         order.CreatedAt,
         order.ConfirmedAt, order.PreparationStartedAt, order.ReadyAt, order.DeliveredAt, order.CompletedAt, order.CancelledAt, order.CancelReason,
-        order.Items.Select(i => new OrderItemResponse(i.Id, i.MenuItemId, i.MenuItem.Name, i.Quantity, i.UnitPrice, i.UnitPrice * i.Quantity, i.Note)).ToList());
+        order.Items.Select(i => new OrderItemResponse(i.Id, i.MenuItemId, i.MenuItem.Name, i.Quantity, i.UnitPrice, i.UnitPrice * i.Quantity, i.Note)).ToList(),
+        allowedTransitions);
 }

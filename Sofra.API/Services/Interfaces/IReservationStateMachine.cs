@@ -1,3 +1,4 @@
+using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Enums;
 
@@ -14,4 +15,10 @@ public interface IReservationStateMachine
     void Apply(
         Reservation reservation, ReservationStatus newStatus, int actorUserId, IReadOnlyCollection<string> actorRoles,
         string? rejectReason = null, DateTime? alternativeAt = null);
+
+    /// <summary>
+    /// Statusi u koje akter upravo sada smije prevesti ovu rezervaciju (uloga, vlasnistvo, da li je termin
+    /// jos u buducnosti za vlasnika) - iste provjere kao Apply, samo bez izvrsavanja.
+    /// </summary>
+    IReadOnlyList<AllowedTransition> GetAllowedTransitions(Reservation reservation, int actorUserId, IReadOnlyCollection<string> actorRoles);
 }

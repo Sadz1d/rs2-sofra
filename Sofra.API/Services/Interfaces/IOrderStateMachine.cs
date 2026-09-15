@@ -1,3 +1,4 @@
+using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Enums;
 
@@ -11,4 +12,10 @@ public interface IOrderStateMachine
     /// Baca BusinessException za nepostojeci prelaz u grafu, ForbiddenException ako akter nema ovlascenje.
     /// </summary>
     void Apply(Order order, OrderStatus newStatus, int actorUserId, IReadOnlyCollection<string> actorRoles, string? cancelReason = null);
+
+    /// <summary>
+    /// Statusi u koje akter upravo sada smije prevesti ovu narudzbu (uloga, vlasnistvo, placanje) -
+    /// isti provjere kao Apply, samo bez izvrsavanja. Order.Payment mora biti ucitan.
+    /// </summary>
+    IReadOnlyList<AllowedTransition> GetAllowedTransitions(Order order, int actorUserId, IReadOnlyCollection<string> actorRoles);
 }

@@ -10,4 +10,7 @@ public static class ClaimsPrincipalExtensions
             ?? throw new UnauthorizedAccessException("Korisnik nije autentifikovan.");
         return int.Parse(value);
     }
+
+    public static IReadOnlyCollection<string> GetRoles(this ClaimsPrincipal principal) =>
+        principal.FindAll(ClaimTypes.Role).Select(x => x.Value).ToList();
 }

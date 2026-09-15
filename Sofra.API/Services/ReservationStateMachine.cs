@@ -1,4 +1,5 @@
 using Sofra.API.Constants;
+using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Enums;
 using Sofra.API.Exceptions;
@@ -102,6 +103,34 @@ public class ReservationStateMachine : IReservationStateMachine
                 reservation.CancelledAt = now;
                 break;
         }
+    }
+
+    public IReadOnlyList<AllowedTransition> GetAllowedTransitions(Reservation reservation, int actorUserId, IReadOnlyCollection<string> actorRoles)
+    {
+        if (!Graph.TryGetValue(reservation.Status, out var candidates))
+        {
+            return [];
+        }
+
+        var result = new List<AllowedTransition>();
+        foreach (var t in candidates)
+        {
+            var isOwner = t.AllowOwner && reservation.UserId == actorUserId;
+            var hasRole = t.AllowedRoles.Any(actorRoles.Contains);
+            if (!isOwner && !hasRole)
+            {
+                continue;
+            }
+
+            if (isOwner && !hasRole && t.OwnerRequiresFutureStart && reservation.ReservationAt <= DateTime.UtcNow)
+            {
+                continue;
+            }
+
+            result.Add(new AllowedTransition((int)t.To, Label(t.To)));
+        }
+
+        return result;
     }
 
     /// <summary>Bosanski naziv statusa, za e-mail/notifikacije i poruke o nedozvoljenim prelazima.</summary>

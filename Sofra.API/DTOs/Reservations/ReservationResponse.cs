@@ -11,4 +11,4 @@ public record ReservationResponse(
     string? RejectReason, DateTime? AlternativeAt,
     int? ProcessedById, string? ProcessedByName, DateTime? ProcessedAt,
     int? CancelledById, string? CancelledByName, DateTime? CancelledAt,
-    DateTime CreatedAt);
+    DateTime CreatedAt, IReadOnlyList<Sofra.API.DTOs.AllowedTransition> AllowedTransitions);

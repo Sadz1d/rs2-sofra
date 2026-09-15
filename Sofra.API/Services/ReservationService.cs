@@ -70,7 +70,7 @@ public class ReservationService(
         return await projected.ToPagedResultAsync(request, cancellationToken);
     }
 
-    public async Task<ReservationResponse> GetByIdAsync(int id, int actorUserId, bool isStaff, CancellationToken cancellationToken = default)
+    public async Task<ReservationResponse> GetByIdAsync(int id, int actorUserId, IReadOnlyCollection<string> actorRoles, bool isStaff, CancellationToken cancellationToken = default)
     {
         var reservation = await LoadDetailedAsync(id, cancellationToken)
             ?? throw new NotFoundException($"Rezervacija sa Id {id} ne postoji.");
@@ -80,7 +80,7 @@ public class ReservationService(
             throw new ForbiddenException("Ne možete pregledati tuđu rezervaciju.");
         }
 
-        return ToResponse(reservation);
+        return ToResponse(reservation, stateMachine.GetAllowedTransitions(reservation, actorUserId, actorRoles));
     }
 
     public async Task<IReadOnlyList<ReservationSlotResponse>> GetAvailabilityAsync(ReservationAvailabilityRequest request, CancellationToken cancellationToken = default)
@@ -163,7 +163,7 @@ public class ReservationService(
         return slots;
     }
 
-    public async Task<ReservationResponse> CreateAsync(ReservationRequest request, int actorUserId, CancellationToken cancellationToken = default)
+    public async Task<ReservationResponse> CreateAsync(ReservationRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
         var zone = await dbContext.Zones.FirstOrDefaultAsync(x => x.Id == request.ZoneId, cancellationToken)
             ?? throw new Exceptions.ValidationException(new Dictionary<string, string[]>
@@ -261,7 +261,7 @@ public class ReservationService(
             new ReservationCreatedMessage(reservation.Id, actorUserId, userName, reservation.ReservationAt, reservation.Guests, reservation.ZoneId, zone.Name),
             cancellationToken);
 
-        return await GetByIdAsync(reservation.Id, actorUserId, isStaff: true, cancellationToken);
+        return await GetByIdAsync(reservation.Id, actorUserId, actorRoles, isStaff: true, cancellationToken);
     }
 
     public async Task<ReservationResponse> TransitionAsync(int id, ReservationTransitionRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
@@ -288,10 +288,11 @@ public class ReservationService(
             EventRoutingKeys.ReservationProcessed,
             cancellationToken);
 
-        return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
+        return await GetByIdAsync(id, actorUserId, actorRoles, isStaff: true, cancellationToken);
     }
 
-    public async Task<ReservationResponse> AssignTableAsync(int id, AssignReservationTableRequest request, CancellationToken cancellationToken = default)
+    public async Task<ReservationResponse> AssignTableAsync(
+        int id, AssignReservationTableRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
         var reservation = await dbContext.Reservations.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Rezervacija sa Id {id} ne postoji.");
@@ -333,7 +334,7 @@ public class ReservationService(
 
         await diningTableStatusService.RecalculateAsync(table.Id, cancellationToken);
 
-        return await GetByIdAsync(id, reservation.UserId, isStaff: true, cancellationToken);
+        return await GetByIdAsync(id, actorUserId, actorRoles, isStaff: true, cancellationToken);
     }
 
     private async Task<int> CountAvailableTablesAsync(int zoneId, DateTime windowStart, DateTime windowEnd, int guests, int? excludeReservationId, CancellationToken cancellationToken)
@@ -427,7 +428,7 @@ public class ReservationService(
             .Include(x => x.CancelledBy)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    private static ReservationResponse ToResponse(Reservation reservation) => new(
+    private static ReservationResponse ToResponse(Reservation reservation, IReadOnlyList<AllowedTransition> allowedTransitions) => new(
         reservation.Id, reservation.UserId, reservation.User.FirstName + " " + reservation.User.LastName,
         reservation.ReservationAt, reservation.DurationMinutes, reservation.Guests,
         reservation.ZoneId, reservation.Zone.Name,
@@ -436,5 +437,5 @@ public class ReservationService(
         reservation.RejectReason, reservation.AlternativeAt,
         reservation.ProcessedById, reservation.ProcessedBy == null ? null : reservation.ProcessedBy.FirstName + " " + reservation.ProcessedBy.LastName, reservation.ProcessedAt,
         reservation.CancelledById, reservation.CancelledBy == null ? null : reservation.CancelledBy.FirstName + " " + reservation.CancelledBy.LastName, reservation.CancelledAt,
-        reservation.CreatedAt);
+        reservation.CreatedAt, allowedTransitions);
 }

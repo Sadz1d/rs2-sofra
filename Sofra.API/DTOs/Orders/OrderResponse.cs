@@ -14,4 +14,4 @@ public record OrderResponse(
     DateTime CreatedAt,
     DateTime? ConfirmedAt, DateTime? PreparationStartedAt, DateTime? ReadyAt,
     DateTime? DeliveredAt, DateTime? CompletedAt, DateTime? CancelledAt, string? CancelReason,
-    IReadOnlyList<OrderItemResponse> Items);
+    IReadOnlyList<OrderItemResponse> Items, IReadOnlyList<Sofra.API.DTOs.AllowedTransition> AllowedTransitions);
