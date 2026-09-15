@@ -13,6 +13,7 @@ using Sofra.API.Filters;
 using Sofra.API.Hubs;
 using Sofra.API.Identity;
 using Sofra.API.Messaging;
+using Sofra.API.Messaging.Consumers;
 using Sofra.API.Middleware;
 using Sofra.API.Options;
 using Sofra.API.Services;
@@ -182,6 +183,10 @@ builder.Services.AddSingleton<RabbitMqConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
+builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
+builder.Services.AddHostedService<LowStockDetectedNotifyConsumer>();
 
 builder.Services.AddSignalR();
 
