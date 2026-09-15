@@ -85,25 +85,37 @@ public class ReservationService(
         var openAt = request.Date.ToDateTime(TimeOnly.FromTimeSpan(restaurant.OpenTime));
         var closeAt = request.Date.ToDateTime(TimeOnly.FromTimeSpan(restaurant.CloseTime));
 
-        var candidateTables = await dbContext.DiningTables.AsNoTracking()
-            .Where(x => x.IsActive && x.Capacity >= request.Guests && x.Zone.Capacity >= request.Guests)
-            .Where(x => request.ZoneId == null || x.ZoneId == request.ZoneId)
-            .Select(x => new { x.Id })
+        // Zone ciji ukupni kapacitet uopste moze primiti ovoliko gostiju - grubi predfilter prije simulacije po stolu.
+        var zoneIds = await dbContext.Zones.AsNoTracking()
+            .Where(z => z.Capacity >= request.Guests)
+            .Where(z => request.ZoneId == null || z.Id == request.ZoneId)
+            .Select(z => z.Id)
             .ToListAsync(cancellationToken);
 
-        if (candidateTables.Count == 0)
+        if (zoneIds.Count == 0)
         {
             return [];
         }
 
-        var candidateTableIds = candidateTables.Select(x => x.Id).ToHashSet();
+        // Svi (ne samo dovoljno veliki) stolovi u tim zonama - simulacija mora znati i za male stolove
+        // da bi ih ispravno dodijelila manjim nedodijeljenim rezervacijama umjesto da ih "otme" velikim upitima.
+        var zoneTables = await dbContext.DiningTables.AsNoTracking()
+            .Where(x => x.IsActive && zoneIds.Contains(x.ZoneId))
+            .Select(x => new { x.Id, x.ZoneId, x.Capacity })
+            .ToListAsync(cancellationToken);
+
+        var tablesByZone = zoneTables
+            .GroupBy(x => x.ZoneId)
+            .ToDictionary(g => g.Key, g => g.Select(x => (x.Id, x.Capacity)).ToList());
 
         var dayReservations = await dbContext.Reservations.AsNoTracking()
-            .Where(x => x.DiningTableId != null && candidateTableIds.Contains(x.DiningTableId!.Value))
+            .Where(x => zoneIds.Contains(x.ZoneId))
             .Where(x => ActiveStatuses.Contains(x.Status))
             .Where(x => x.ReservationAt < closeAt && x.ReservationAt.AddMinutes(x.DurationMinutes) > openAt)
-            .Select(x => new { x.DiningTableId, x.ReservationAt, x.DurationMinutes })
+            .Select(x => new { x.ZoneId, x.DiningTableId, x.Guests, x.ReservationAt, x.DurationMinutes })
             .ToListAsync(cancellationToken);
+
+        var reservationsByZone = dayReservations.GroupBy(x => x.ZoneId).ToDictionary(g => g.Key, g => g.ToList());
 
         var now = DateTime.UtcNow;
         var slots = new List<ReservationSlotResponse>();
@@ -116,15 +128,29 @@ public class ReservationService(
             }
 
             var slotEnd = slotStart.AddMinutes(request.DurationMinutes);
+            var totalAvailable = 0;
 
-            var availableTables = candidateTableIds.Count(tableId => !dayReservations.Any(r =>
-                r.DiningTableId == tableId &&
-                r.ReservationAt < slotEnd &&
-                r.ReservationAt.AddMinutes(r.DurationMinutes) > slotStart));
-
-            if (availableTables > 0)
+            foreach (var zoneId in zoneIds)
             {
-                slots.Add(new ReservationSlotResponse(slotStart, slotEnd, availableTables));
+                if (!tablesByZone.TryGetValue(zoneId, out var tables) || tables.Count == 0)
+                {
+                    continue;
+                }
+
+                var overlapping = reservationsByZone.TryGetValue(zoneId, out var zoneReservations)
+                    ? zoneReservations
+                        .Where(r => r.ReservationAt < slotEnd && r.ReservationAt.AddMinutes(r.DurationMinutes) > slotStart)
+                        .Select(r => (r.DiningTableId, r.Guests))
+                        .ToList()
+                    : [];
+
+                var occupied = SimulateOccupiedTables(tables, overlapping);
+                totalAvailable += tables.Count(t => t.Capacity >= request.Guests && !occupied.Contains(t.Id));
+            }
+
+            if (totalAvailable > 0)
+            {
+                slots.Add(new ReservationSlotResponse(slotStart, slotEnd, totalAvailable));
             }
         }
 
@@ -142,6 +168,15 @@ public class ReservationService(
         if (request.Guests > zone.Capacity)
         {
             throw new BusinessException($"Broj gostiju ({request.Guests}) premašuje kapacitet zone '{zone.Name}' ({zone.Capacity}).");
+        }
+
+        var reservationEnd = request.ReservationAt.AddMinutes(request.DurationMinutes);
+        var dayOpen = request.ReservationAt.Date + restaurantOptions.Value.OpenTime;
+        var dayClose = request.ReservationAt.Date + restaurantOptions.Value.CloseTime;
+        if (request.ReservationAt < dayOpen || reservationEnd > dayClose)
+        {
+            throw new BusinessException(
+                $"Termin mora biti unutar radnog vremena ({restaurantOptions.Value.OpenTime:hh\\:mm}-{restaurantOptions.Value.CloseTime:hh\\:mm}).");
         }
 
         DiningTable? table = null;
@@ -166,16 +201,19 @@ public class ReservationService(
                 throw new BusinessException($"Broj gostiju ({request.Guests}) premašuje kapacitet stola {table.Number} ({table.Capacity}).");
             }
 
+            // Sto je eksplicitno trazen - direktna provjera preklapanja bas na taj sto je dovoljna,
+            // jer taj sto vise nije dio "zajednickog fonda" koji simulacija dijeli nedodijeljenim rezervacijama.
             await EnsureNoOverlapAsync(table.Id, request.ReservationAt, request.DurationMinutes, excludeReservationId: null, cancellationToken);
         }
-
-        var reservationEnd = request.ReservationAt.AddMinutes(request.DurationMinutes);
-        var dayOpen = request.ReservationAt.Date + restaurantOptions.Value.OpenTime;
-        var dayClose = request.ReservationAt.Date + restaurantOptions.Value.CloseTime;
-        if (request.ReservationAt < dayOpen || reservationEnd > dayClose)
+        else
         {
-            throw new BusinessException(
-                $"Termin mora biti unutar radnog vremena ({restaurantOptions.Value.OpenTime:hh\\:mm}-{restaurantOptions.Value.CloseTime:hh\\:mm}).");
+            // Bez dodijeljenog stola: rezervacija i dalje treba zauzeti "jedan sto" u zoni, inace bi neograniceno
+            // mnogo nedodijeljenih rezervacija moglo "potvrditi" isti termin. Simuliraj zauzece cijele zone.
+            var availableCount = await CountAvailableTablesAsync(request.ZoneId, request.ReservationAt, reservationEnd, request.Guests, excludeReservationId: null, cancellationToken);
+            if (availableCount == 0)
+            {
+                throw new BusinessException($"Nema slobodnih stolova u zoni '{zone.Name}' za taj termin.");
+            }
         }
 
         var hasActiveAtSameTime = await dbContext.Reservations.AnyAsync(x =>
@@ -270,6 +308,71 @@ public class ReservationService(
         await diningTableStatusService.RecalculateAsync(table.Id, cancellationToken);
 
         return await GetByIdAsync(id, reservation.UserId, isStaff: true, cancellationToken);
+    }
+
+    private async Task<int> CountAvailableTablesAsync(int zoneId, DateTime windowStart, DateTime windowEnd, int guests, int? excludeReservationId, CancellationToken cancellationToken)
+    {
+        var tables = await dbContext.DiningTables.AsNoTracking()
+            .Where(x => x.IsActive && x.ZoneId == zoneId)
+            .Select(x => new { x.Id, x.Capacity })
+            .ToListAsync(cancellationToken);
+
+        var overlapping = await dbContext.Reservations.AsNoTracking()
+            .Where(x => x.ZoneId == zoneId)
+            .Where(x => ActiveStatuses.Contains(x.Status))
+            .Where(x => excludeReservationId == null || x.Id != excludeReservationId)
+            .Where(x => x.ReservationAt < windowEnd && x.ReservationAt.AddMinutes(x.DurationMinutes) > windowStart)
+            .Select(x => new { x.DiningTableId, x.Guests })
+            .ToListAsync(cancellationToken);
+
+        var occupied = SimulateOccupiedTables(
+            tables.Select(t => (t.Id, t.Capacity)).ToList(),
+            overlapping.Select(r => (r.DiningTableId, r.Guests)).ToList());
+
+        return tables.Count(t => t.Capacity >= guests && !occupied.Contains(t.Id));
+    }
+
+    /// <summary>
+    /// Simulira koji stolovi ostaju zauzeti u jednoj zoni za dati skup aktivnih rezervacija koje se preklapaju
+    /// s posmatranim terminom: rezervacije s dodijeljenim stolom zauzimaju bas taj sto; rezervacije bez stola
+    /// se pohlepno dodjeljuju najmanjem preostalom slobodnom stolu koji prima njihov broj gostiju (first-fit
+    /// po rastucem kapacitetu, manje rezervacije prve). Ovo sprecava da neograniceno mnogo nedodijeljenih
+    /// rezervacija "potvrdi" isti termin - svaka aktivna rezervacija stvarno zauzima jedan sto.
+    /// </summary>
+    private static HashSet<int> SimulateOccupiedTables(
+        List<(int Id, int Capacity)> zoneTables,
+        List<(int? DiningTableId, int Guests)> overlappingReservations)
+    {
+        var occupied = new HashSet<int>();
+
+        foreach (var tableId in overlappingReservations.Where(x => x.DiningTableId.HasValue).Select(x => x.DiningTableId!.Value))
+        {
+            if (zoneTables.Any(t => t.Id == tableId))
+            {
+                occupied.Add(tableId);
+            }
+        }
+
+        var freeTablesAscending = zoneTables
+            .Where(t => !occupied.Contains(t.Id))
+            .OrderBy(t => t.Capacity)
+            .ToList();
+
+        foreach (var guests in overlappingReservations.Where(x => !x.DiningTableId.HasValue).Select(x => x.Guests).OrderBy(g => g))
+        {
+            var matchIndex = freeTablesAscending.FindIndex(t => t.Capacity >= guests);
+            if (matchIndex < 0)
+            {
+                // Nema odgovarajuceg stola za ovu (hipotetsku) rezervaciju - u stvarnosti se ne bi mogla
+                // potvrditi bez dodijeljenog stola, pa je ignorisemo u simulaciji zauzeca.
+                continue;
+            }
+
+            occupied.Add(freeTablesAscending[matchIndex].Id);
+            freeTablesAscending.RemoveAt(matchIndex);
+        }
+
+        return occupied;
     }
 
     private async Task EnsureNoOverlapAsync(int diningTableId, DateTime reservationAt, int durationMinutes, int? excludeReservationId, CancellationToken cancellationToken)
