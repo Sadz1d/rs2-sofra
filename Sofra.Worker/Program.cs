@@ -5,6 +5,8 @@ using Sofra.Worker.Data;
 using Sofra.Worker.Messaging;
 using Sofra.Worker.Messaging.Consumers;
 using Sofra.Worker.Options;
+using Sofra.Worker.Services;
+using Sofra.Worker.Services.Interfaces;
 
 try
 {
@@ -37,6 +39,8 @@ builder.Services.AddDbContext<WorkerDbContext>(options =>
 
 builder.Services.AddSingleton<RabbitMqConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
+
+builder.Services.AddScoped<IEmailSender, EmailSender>();
 
 builder.Services.AddHostedService<OrderStatusChangedConsumer>();
 builder.Services.AddHostedService<ReservationProcessedConsumer>();
