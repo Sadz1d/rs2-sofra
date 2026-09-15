@@ -6,6 +6,8 @@ import 'providers/auth_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/orders_provider.dart';
+import 'providers/reservations_provider.dart';
+import 'providers/tables_provider.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/signalr_service.dart';
@@ -41,6 +43,8 @@ void main() {
 
   final ordersProvider = OrdersProvider(apiClient: apiClient, signalRService: signalRService);
   final dashboardProvider = DashboardProvider(apiClient: apiClient);
+  final tablesProvider = TablesProvider(apiClient: apiClient, signalRService: signalRService);
+  final reservationsProvider = ReservationsProvider(apiClient: apiClient, signalRService: signalRService);
 
   authProvider.bootstrap();
 
@@ -53,6 +57,8 @@ void main() {
         ChangeNotifierProvider<NotificationProvider>.value(value: notificationProvider),
         ChangeNotifierProvider<OrdersProvider>.value(value: ordersProvider),
         ChangeNotifierProvider<DashboardProvider>.value(value: dashboardProvider),
+        ChangeNotifierProvider<TablesProvider>.value(value: tablesProvider),
+        ChangeNotifierProvider<ReservationsProvider>.value(value: reservationsProvider),
       ],
       child: const SofraApp(),
     ),

@@ -4,7 +4,9 @@ import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/error/not_found_screen.dart';
 import 'screens/kitchen/kitchen_screen.dart';
 import 'screens/orders/orders_screen.dart';
+import 'screens/reservations/reservations_screen.dart';
 import 'screens/shell/auth_gate.dart';
+import 'screens/tables/tables_screen.dart';
 import 'screens/shell/coming_soon_screen.dart';
 import 'theme/app_theme.dart';
 import 'utils/nav_items.dart';
@@ -45,6 +47,8 @@ class SofraApp extends StatelessWidget {
       '/' => const DashboardScreen(),
       '/orders' => const OrdersScreen(),
       '/kitchen' => const KitchenScreen(),
+      '/tables' => const TablesScreen(),
+      '/reservations' => const ReservationsScreen(),
       _ => ComingSoonScreen(title: navItem.label),
     };
 
