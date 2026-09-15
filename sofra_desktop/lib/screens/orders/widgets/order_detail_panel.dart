@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/allowed_transition.dart';
 import '../../../models/order.dart';
 import '../../../models/order_status.dart';
-import '../../../models/order_workflow.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../providers/orders_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/formatting.dart';
@@ -76,8 +75,6 @@ class _Body extends StatelessWidget {
       return const Center(child: Text('Odaberite narudžbu.'));
     }
 
-    final roles = context.watch<AuthProvider>().currentUser?.roles ?? const <String>[];
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -147,16 +144,25 @@ class _Body extends StatelessWidget {
           const SizedBox(height: 24),
           Text('Promjena statusa', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 12),
-          for (final option in OrderWorkflow.nextOptions(order.status, roles, isPaid: order.isPaid))
+          // Dugmad se crtaju iskljucivo iz order.allowedTransitions (API vec provjerio ulogu,
+          // vlasnistvo i placanje) - nema klijentske kopije te logike.
+          for (final option in order.allowedTransitions)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _TransitionButton(order: order, option: option),
             ),
-          if (OrderWorkflow.nextOptions(order.status, roles, isPaid: order.isPaid).isEmpty)
+          if (order.allowedTransitions.isEmpty)
             Text(
               'Nema dostupnih akcija za vašu ulogu na ovom statusu.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          if (order.isPaid && order.status.isActive) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Plaćena narudžba zahtijeva povrat sredstava prije otkazivanja.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 20),
           Text(_historyLine(order), style: Theme.of(context).textTheme.bodySmall),
         ],
@@ -191,54 +197,35 @@ class _TransitionButton extends StatelessWidget {
   const _TransitionButton({required this.order, required this.option});
 
   final OrderDetail order;
-  final OrderTransitionOption option;
+  final AllowedTransition option;
 
   @override
   Widget build(BuildContext context) {
-    final isCancel = option.to == OrderStatus.cancelled;
-
-    if (!option.allowed) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(onPressed: null, child: Text(option.label)),
-          ),
-          if (option.disabledReason != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                option.disabledReason!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.danger),
-              ),
-            ),
-        ],
-      );
-    }
+    final targetStatus = OrderStatus.fromValue(option.status);
+    final isCancel = targetStatus == OrderStatus.cancelled;
 
     return SizedBox(
       width: double.infinity,
       child: isCancel
           ? OutlinedButton(
               style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-              onPressed: () => _handle(context),
-              child: Text(option.label),
+              onPressed: () => _handle(context, targetStatus),
+              child: Text(targetStatus.actionVerb),
             )
           : FilledButton(
-              style: option.to == OrderStatus.ready || option.to == OrderStatus.delivered
+              style: targetStatus == OrderStatus.ready || targetStatus == OrderStatus.delivered
                   ? FilledButton.styleFrom(backgroundColor: AppColors.success)
                   : null,
-              onPressed: () => _handle(context),
-              child: Text(option.label),
+              onPressed: () => _handle(context, targetStatus),
+              child: Text(targetStatus.actionVerb),
             ),
     );
   }
 
-  Future<void> _handle(BuildContext context) async {
+  Future<void> _handle(BuildContext context, OrderStatus targetStatus) async {
     final ordersProvider = context.read<OrdersProvider>();
     String? cancelReason;
-    if (option.to == OrderStatus.cancelled) {
+    if (targetStatus == OrderStatus.cancelled) {
       cancelReason = await showReasonDialog(
         context,
         title: 'Otkazivanje narudžbe',
@@ -249,7 +236,7 @@ class _TransitionButton extends StatelessWidget {
       if (cancelReason == null || !context.mounted) return;
     }
     try {
-      await ordersProvider.transition(order.id, option.to, cancelReason: cancelReason);
+      await ordersProvider.transition(order.id, targetStatus, cancelReason: cancelReason);
       if (context.mounted) showAppToast(context, 'Status narudžbe #${order.number} je ažuriran.');
     } catch (e) {
       if (context.mounted) showAppToast(context, e.toString(), isError: true);

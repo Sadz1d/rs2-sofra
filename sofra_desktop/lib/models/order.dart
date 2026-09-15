@@ -1,3 +1,4 @@
+import 'allowed_transition.dart';
 import 'order_status.dart';
 import 'order_type.dart';
 
@@ -91,6 +92,7 @@ class OrderDetail {
     required this.isPaid,
     required this.createdAt,
     required this.items,
+    required this.allowedTransitions,
     this.diningTableId,
     this.diningTableNumber,
     this.waiterId,
@@ -136,6 +138,7 @@ class OrderDetail {
   final DateTime? cancelledAt;
   final String? cancelReason;
   final List<OrderItem> items;
+  final List<AllowedTransition> allowedTransitions;
 
   /// Vrijeme na koje se oslanja "vrijeme cekanja" prikaz - zadnji poznati status timestamp, ili kreiranje.
   DateTime get lastStatusChangeAt =>
@@ -178,6 +181,9 @@ class OrderDetail {
         cancelReason: json['cancelReason'] as String?,
         items: (json['items'] as List<dynamic>)
             .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        allowedTransitions: (json['allowedTransitions'] as List<dynamic>)
+            .map((e) => AllowedTransition.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 

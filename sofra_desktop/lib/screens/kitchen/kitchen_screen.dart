@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/allowed_transition.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
-import '../../models/order_workflow.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_toast.dart';
@@ -132,8 +131,8 @@ class _KitchenCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final since = order.confirmedAt ?? order.createdAt;
-    final roles = context.watch<AuthProvider>().currentUser?.roles ?? const <String>[];
-    final option = OrderWorkflow.primaryOption(order.status, roles, isPaid: order.isPaid);
+    final nextStatus = order.status == OrderStatus.confirmed ? OrderStatus.inPreparation : OrderStatus.ready;
+    final option = order.allowedTransitions.forStatus(nextStatus.value);
 
     return Card(
       shape: RoundedRectangleBorder(
@@ -189,7 +188,7 @@ class _KitchenCard extends StatelessWidget {
                   label: Text(order.status == OrderStatus.confirmed ? 'Započni' : 'Spremno'),
                   onPressed: () async {
                     try {
-                      await context.read<OrdersProvider>().transition(order.id, option.to);
+                      await context.read<OrdersProvider>().transition(order.id, nextStatus);
                       if (context.mounted) showAppToast(context, 'Narudžba #${order.number} ažurirana.');
                     } catch (e) {
                       if (context.mounted) showAppToast(context, e.toString(), isError: true);

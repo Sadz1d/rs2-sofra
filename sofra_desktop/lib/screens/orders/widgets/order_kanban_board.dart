@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/allowed_transition.dart';
 import '../../../models/order.dart';
 import '../../../models/order_status.dart';
-import '../../../models/order_workflow.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/orders_provider.dart';
 import '../../../theme/app_theme.dart';
@@ -187,9 +187,8 @@ class _CardActions extends StatelessWidget {
 
     switch (order.status) {
       case OrderStatus.pending:
-        final options = OrderWorkflow.nextOptions(order.status, roles, isPaid: order.isPaid);
-        final confirm = options.where((o) => o.to == OrderStatus.confirmed && o.allowed).firstOrNull;
-        final cancel = options.where((o) => o.to == OrderStatus.cancelled && o.allowed).firstOrNull;
+        final confirm = order.allowedTransitions.forStatus(OrderStatus.confirmed.value);
+        final cancel = order.allowedTransitions.forStatus(OrderStatus.cancelled.value);
         if (confirm == null && cancel == null) return const SizedBox.shrink();
         return Row(
           children: [
@@ -204,7 +203,7 @@ class _CardActions extends StatelessWidget {
                       if (context.mounted) showAppToast(context, e.toString(), isError: true);
                     }
                   },
-                  child: const Text('Potvrdi'),
+                  child: Text(OrderStatus.confirmed.actionVerb),
                 ),
               ),
             if (confirm != null && cancel != null) const SizedBox(width: 8),
@@ -212,7 +211,7 @@ class _CardActions extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => _cancel(context, ordersProvider),
-                  child: const Text('Otkaži'),
+                  child: Text(OrderStatus.cancelled.actionVerb),
                 ),
               ),
           ],
@@ -223,7 +222,7 @@ class _CardActions extends StatelessWidget {
         return const SizedBox.shrink();
 
       case OrderStatus.ready:
-        final option = OrderWorkflow.primaryOption(order.status, roles, isPaid: order.isPaid);
+        final option = order.allowedTransitions.forStatus(OrderStatus.delivered.value);
         if (option == null) return const SizedBox.shrink();
         return SizedBox(
           width: double.infinity,
@@ -231,13 +230,13 @@ class _CardActions extends StatelessWidget {
             style: FilledButton.styleFrom(backgroundColor: AppColors.success),
             onPressed: () async {
               try {
-                await ordersProvider.transition(order.id, option.to);
+                await ordersProvider.transition(order.id, OrderStatus.delivered);
                 if (context.mounted) showAppToast(context, 'Narudžba #${order.number} je isporučena.');
               } catch (e) {
                 if (context.mounted) showAppToast(context, e.toString(), isError: true);
               }
             },
-            child: Text(option.label),
+            child: Text(OrderStatus.delivered.actionVerb),
           ),
         );
 
@@ -299,8 +298,4 @@ class _CardActions extends StatelessWidget {
       if (context.mounted) showAppToast(context, e.toString(), isError: true);
     }
   }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }
