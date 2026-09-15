@@ -12,4 +12,5 @@ public interface IStatisticsService
     Task<IReadOnlyList<TopMenuItemStatItem>> GetTopMenuItemsAsync(DateRangeRequest request, int take, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ZoneOccupancyStatItem>> GetZoneOccupancyAsync(DateRangeRequest request, CancellationToken cancellationToken = default);
     Task<AverageRatingResponse> GetAverageRatingAsync(DateRangeRequest request, CancellationToken cancellationToken = default);
+    Task<DashboardResponse> GetDashboardAsync(RevenueStatisticsRequest request, bool isAdmin, CancellationToken cancellationToken = default);
 }
