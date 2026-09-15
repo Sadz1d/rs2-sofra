@@ -75,6 +75,11 @@ public class OrderStateMachine : IOrderStateMachine
                 $"Nemate ovlašćenje da promijenite status narudžbe iz '{Label(order.Status)}' u '{Label(newStatus)}'.");
         }
 
+        if (newStatus == OrderStatus.Cancelled && order.Payment?.Status == PaymentStatus.Succeeded)
+        {
+            throw new BusinessException("Narudžba je plaćena - potreban je povrat prije otkazivanja.");
+        }
+
         order.Status = newStatus;
         var now = DateTime.UtcNow;
 

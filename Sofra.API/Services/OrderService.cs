@@ -153,7 +153,7 @@ public class OrderService(
 
     public async Task<OrderResponse> TransitionAsync(int id, OrderTransitionRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
-        var order = await dbContext.Orders.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var order = await dbContext.Orders.Include(x => x.User).Include(x => x.Payment).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Narudžba sa Id {id} ne postoji.");
 
         var oldStatusLabel = OrderStateMachine.GetStatusLabel(order.Status);
