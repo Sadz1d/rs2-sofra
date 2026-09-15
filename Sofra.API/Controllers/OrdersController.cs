@@ -13,7 +13,7 @@ namespace Sofra.API.Controllers;
 [ApiController]
 [Route("api/orders")]
 [Authorize]
-public class OrdersController(IOrderService service) : ControllerBase
+public class OrdersController(IOrderService service, IReportService reportService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<PagedResult<OrderListItemResponse>>> GetList([FromQuery] OrderListRequest request, CancellationToken cancellationToken)
@@ -49,6 +49,13 @@ public class OrdersController(IOrderService service) : ControllerBase
         var roles = User.FindAll(ClaimTypes.Role).Select(x => x.Value).ToList();
         var result = await service.TransitionAsync(id, request, User.GetUserId(), roles, cancellationToken);
         return Ok(result);
+    }
+
+    [HttpGet("{id:int}/receipt")]
+    public async Task<IActionResult> Receipt(int id, CancellationToken cancellationToken)
+    {
+        var pdf = await reportService.GenerateReceiptAsync(id, User.GetUserId(), IsStaff(), cancellationToken);
+        return File(pdf, "application/pdf", $"racun-{id}.pdf");
     }
 
     private bool IsStaff() => User.IsInRole(Roles.Admin) || User.IsInRole(Roles.Konobar) || User.IsInRole(Roles.Kuhar);

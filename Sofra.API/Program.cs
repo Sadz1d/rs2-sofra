@@ -28,6 +28,8 @@ catch (FileNotFoundException)
     // U Docker kontejneru .env fajl ne postoji — varijable su već postavljene kroz docker-compose (env_file/environment).
 }
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfiguration
@@ -192,6 +194,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IShiftService, ShiftService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<INewsService, NewsService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
 builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
