@@ -24,7 +24,12 @@ class SignalRService {
   /// Sirovi tok sa oba huba - koristi ga privremeni ekran koji dokazuje da veza radi.
   Stream<SignalREvent> get rawEvents => _rawEventsController.stream;
 
-  static const _orderHubMethods = ['orderStatusChanged', 'reservationCreated', 'tableStatusChanged'];
+  static const _orderHubMethods = [
+    'orderCreated',
+    'orderStatusChanged',
+    'reservationCreated',
+    'tableStatusChanged',
+  ];
 
   Future<void> connect() async {
     await disconnect();
