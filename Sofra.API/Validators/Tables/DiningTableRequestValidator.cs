@@ -26,8 +26,5 @@ public class DiningTableRequestValidator : AbstractValidator<DiningTableRequest>
         RuleFor(x => x.QrCode)
             .MaximumLength(50).WithMessage("QR kod može imati najviše 50 znakova.")
             .When(x => !string.IsNullOrWhiteSpace(x.QrCode));
-
-        RuleFor(x => x.Status)
-            .IsInEnum().WithMessage("Status stola nije validan.");
     }
 }

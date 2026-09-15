@@ -67,6 +67,14 @@ builder.Services.AddOptions<OrderOptions>()
     .Bind(builder.Configuration.GetSection(OrderOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<RestaurantOptions>()
+    .Bind(builder.Configuration.GetSection(RestaurantOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<ReservationOptions>()
+    .Bind(builder.Configuration.GetSection(ReservationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 const string CorsPolicyName = "SofraCors";
 var corsAllowedOrigins = builder.Configuration.GetValue<string>($"{CorsOptions.SectionName}:AllowedOrigins") ?? string.Empty;
@@ -152,6 +160,7 @@ builder.Services.AddScoped<IDiningTableService, DiningTableService>();
 builder.Services.AddScoped<IInventoryItemService, InventoryItemService>();
 builder.Services.AddScoped<IOrderStateMachine, OrderStateMachine>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IDiningTableStatusService, DiningTableStatusService>();
 builder.Services.AddScoped<IReservationStateMachine, ReservationStateMachine>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

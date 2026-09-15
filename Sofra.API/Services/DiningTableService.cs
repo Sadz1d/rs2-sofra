@@ -89,7 +89,7 @@ public class DiningTableService(AppDbContext dbContext) : IDiningTableService
             TableTypeId = request.TableTypeId,
             WaiterId = request.WaiterId,
             QrCode = qrCode,
-            Status = request.Status,
+            Status = TableStatus.Free,
             IsActive = true,
         };
 
@@ -119,7 +119,7 @@ public class DiningTableService(AppDbContext dbContext) : IDiningTableService
         entity.TableTypeId = request.TableTypeId;
         entity.WaiterId = request.WaiterId;
         entity.QrCode = qrCode;
-        entity.Status = request.Status;
+        // Status se ne mijenja ovdje - iskljucivo kroz IDiningTableStatusService (narudzbe/rezervacije).
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

@@ -12,7 +12,11 @@ using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class OrderService(AppDbContext dbContext, IOrderStateMachine stateMachine, IOptions<OrderOptions> orderOptions) : IOrderService
+public class OrderService(
+    AppDbContext dbContext,
+    IOrderStateMachine stateMachine,
+    IDiningTableStatusService diningTableStatusService,
+    IOptions<OrderOptions> orderOptions) : IOrderService
 {
     private readonly decimal _taxRatePercent = orderOptions.Value.TaxRatePercent;
 
@@ -149,6 +153,11 @@ public class OrderService(AppDbContext dbContext, IOrderStateMachine stateMachin
         stateMachine.Apply(order, request.Status, actorUserId, actorRoles, request.CancelReason);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (order.DiningTableId.HasValue)
+        {
+            await diningTableStatusService.RecalculateAsync(order.DiningTableId.Value, cancellationToken);
+        }
 
         return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
     }
