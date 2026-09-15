@@ -1,13 +1,19 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sofra.API.Data;
 using Sofra.API.Enums;
+using Sofra.API.Hubs;
+using Sofra.API.Hubs.Messages;
 using Sofra.API.Options;
 using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class DiningTableStatusService(AppDbContext dbContext, IOptions<ReservationOptions> reservationOptions) : IDiningTableStatusService
+public class DiningTableStatusService(
+    AppDbContext dbContext,
+    IOptions<ReservationOptions> reservationOptions,
+    IHubContext<OrderHub> orderHub) : IDiningTableStatusService
 {
     // Sto je "u upotrebi" narudzbom od trenutka kad je potvrdjena do isporuke; Pending je jos samo zahtjev.
     private static readonly OrderStatus[] OccupyingOrderStatuses =
@@ -22,6 +28,8 @@ public class DiningTableStatusService(AppDbContext dbContext, IOptions<Reservati
         {
             return;
         }
+
+        var previousStatus = table.Status;
 
         var hasOccupyingOrder = await dbContext.Orders
             .AnyAsync(x => x.DiningTableId == diningTableId && OccupyingOrderStatuses.Contains(x.Status), cancellationToken);
@@ -44,6 +52,16 @@ public class DiningTableStatusService(AppDbContext dbContext, IOptions<Reservati
             table.Status = hasUpcomingReservation ? TableStatus.Reserved : TableStatus.Free;
         }
 
+        if (table.Status == previousStatus)
+        {
+            return;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await orderHub.Clients.Group("staff").SendAsync(
+            "tableStatusChanged",
+            new TableStatusChangedMessage(table.Id, table.Number, table.Status.ToString()),
+            cancellationToken);
     }
 }

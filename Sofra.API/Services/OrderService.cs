@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sofra.API.Data;
@@ -6,6 +7,8 @@ using Sofra.API.DTOs.Orders;
 using Sofra.API.Entities;
 using Sofra.API.Enums;
 using Sofra.API.Exceptions;
+using Sofra.API.Hubs;
+using Sofra.API.Hubs.Messages;
 using Sofra.API.Options;
 using Sofra.API.Requests.Orders;
 using Sofra.API.Services.Interfaces;
@@ -18,6 +21,7 @@ public class OrderService(
     IOrderStateMachine stateMachine,
     IDiningTableStatusService diningTableStatusService,
     IEventPublisher eventPublisher,
+    IHubContext<OrderHub> orderHub,
     IOptions<OrderOptions> orderOptions) : IOrderService
 {
     private readonly decimal _taxRatePercent = orderOptions.Value.TaxRatePercent;
@@ -171,6 +175,15 @@ public class OrderService(
                 oldStatusLabel, newStatusLabel, order.CancelReason),
             EventRoutingKeys.OrderStatusChanged,
             cancellationToken);
+
+        // API vec zna sve o prelazu u ovom trenutku (nije potreban RabbitMQ round-trip) - direktan push.
+        var orderStatusMessage = new OrderStatusChangedMessage(order.Id, order.Number, order.UserId, oldStatusLabel, newStatusLabel);
+        await orderHub.Clients.Group($"user:{order.UserId}").SendAsync("orderStatusChanged", orderStatusMessage, cancellationToken);
+        await orderHub.Clients.Group("staff").SendAsync("orderStatusChanged", orderStatusMessage, cancellationToken);
+        if (order.Status is OrderStatus.Confirmed or OrderStatus.Ready)
+        {
+            await orderHub.Clients.Group("kitchen").SendAsync("orderStatusChanged", orderStatusMessage, cancellationToken);
+        }
 
         return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
     }

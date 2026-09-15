@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Sofra.API.Data;
@@ -6,6 +7,8 @@ using Sofra.API.DTOs.Reservations;
 using Sofra.API.Entities;
 using Sofra.API.Enums;
 using Sofra.API.Exceptions;
+using Sofra.API.Hubs;
+using Sofra.API.Hubs.Messages;
 using Sofra.API.Options;
 using Sofra.API.Requests.Reservations;
 using Sofra.API.Services.Interfaces;
@@ -18,6 +21,7 @@ public class ReservationService(
     IReservationStateMachine stateMachine,
     IDiningTableStatusService diningTableStatusService,
     IEventPublisher eventPublisher,
+    IHubContext<OrderHub> orderHub,
     IOptions<RestaurantOptions> restaurantOptions,
     IOptions<ReservationOptions> reservationOptions) : IReservationService
 {
@@ -246,6 +250,16 @@ public class ReservationService(
         dbContext.Reservations.Add(reservation);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        var userName = await dbContext.Users.Where(x => x.Id == actorUserId)
+            .Select(x => x.FirstName + " " + x.LastName)
+            .FirstAsync(cancellationToken);
+
+        // Nova (Pending) rezervacija - osoblje treba odmah da je vidi bez rucnog refresh-a.
+        await orderHub.Clients.Group("staff").SendAsync(
+            "reservationCreated",
+            new ReservationCreatedMessage(reservation.Id, actorUserId, userName, reservation.ReservationAt, reservation.Guests, reservation.ZoneId, zone.Name),
+            cancellationToken);
 
         return await GetByIdAsync(reservation.Id, actorUserId, isStaff: true, cancellationToken);
     }
