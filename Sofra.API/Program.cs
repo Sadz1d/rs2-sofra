@@ -190,6 +190,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IShiftService, ShiftService>();
+builder.Services.AddScoped<IPromotionService, PromotionService>();
 
 builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
 builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
