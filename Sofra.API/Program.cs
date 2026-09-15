@@ -10,6 +10,7 @@ using Sofra.API.Data;
 using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Filters;
+using Sofra.API.Hubs;
 using Sofra.API.Identity;
 using Sofra.API.Messaging;
 using Sofra.API.Middleware;
@@ -126,6 +127,18 @@ builder.Services
         };
         options.Events = new JwtBearerEvents
         {
+            // WebSocket ne nosi Authorization header - SignalR JS klijent zato salje token kroz
+            // access_token query string na /hubs/* putanje; svugdje drugo i dalje samo Bearer header.
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            },
             OnTokenValidated = context =>
             {
                 var denylist = context.HttpContext.RequestServices.GetRequiredService<IJtiDenylistService>();
@@ -169,6 +182,8 @@ builder.Services.AddSingleton<RabbitMqConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.AddSignalR();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -247,6 +262,9 @@ app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<OrderHub>("/hubs/orders");
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
