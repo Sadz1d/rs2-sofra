@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>(options)
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
 
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
     public DbSet<Allergen> Allergens => Set<Allergen>();
@@ -42,6 +43,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<UserInteraction> UserInteractions => Set<UserInteraction>();
     public DbSet<MenuItemStats> MenuItemStats => Set<MenuItemStats>();
     public DbSet<MenuItemPair> MenuItemPairs => Set<MenuItemPair>();
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

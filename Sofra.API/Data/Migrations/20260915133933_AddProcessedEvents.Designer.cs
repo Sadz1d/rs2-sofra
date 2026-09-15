@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Sofra.API.Data;
 
@@ -11,9 +12,11 @@ using Sofra.API.Data;
 namespace Sofra.API.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915133933_AddProcessedEvents")]
+    partial class AddProcessedEvents
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -173,7 +176,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Allergens", (string)null);
+                    b.ToTable("Allergens");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.ApplicationUser", b =>
@@ -293,7 +296,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name", "CountryId")
                         .IsUnique();
 
-                    b.ToTable("Cities", (string)null);
+                    b.ToTable("Cities");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Country", b =>
@@ -318,7 +321,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Countries", (string)null);
+                    b.ToTable("Countries");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.DietaryTag", b =>
@@ -339,7 +342,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("DietaryTags", (string)null);
+                    b.ToTable("DietaryTags");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.DiningTable", b =>
@@ -390,7 +393,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("ZoneId");
 
-                    b.ToTable("DiningTables", (string)null);
+                    b.ToTable("DiningTables");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Employee", b =>
@@ -424,7 +427,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Employees", (string)null);
+                    b.ToTable("Employees");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Favorite", b =>
@@ -442,7 +445,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("MenuItemId");
 
-                    b.ToTable("Favorites", (string)null);
+                    b.ToTable("Favorites");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.InventoryCategory", b =>
@@ -463,7 +466,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("InventoryCategories", (string)null);
+                    b.ToTable("InventoryCategories");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.InventoryItem", b =>
@@ -506,7 +509,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("UnitOfMeasureId");
 
-                    b.ToTable("InventoryItems", (string)null);
+                    b.ToTable("InventoryItems");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.InventoryTransaction", b =>
@@ -548,7 +551,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("InventoryTransactions", (string)null);
+                    b.ToTable("InventoryTransactions");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuCategory", b =>
@@ -583,7 +586,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("MenuCategories", (string)null);
+                    b.ToTable("MenuCategories");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItem", b =>
@@ -634,7 +637,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("MenuCategoryId");
 
-                    b.ToTable("MenuItems", (string)null);
+                    b.ToTable("MenuItems");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItemAllergen", b =>
@@ -649,7 +652,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("AllergenId");
 
-                    b.ToTable("MenuItemAllergens", (string)null);
+                    b.ToTable("MenuItemAllergens");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItemDietaryTag", b =>
@@ -664,7 +667,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("DietaryTagId");
 
-                    b.ToTable("MenuItemDietaryTags", (string)null);
+                    b.ToTable("MenuItemDietaryTags");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItemIngredient", b =>
@@ -692,7 +695,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("MenuItemId", "InventoryItemId")
                         .IsUnique();
 
-                    b.ToTable("MenuItemIngredients", (string)null);
+                    b.ToTable("MenuItemIngredients");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItemPair", b =>
@@ -722,7 +725,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("MenuItemAId", "MenuItemBId")
                         .IsUnique();
 
-                    b.ToTable("MenuItemPairs", (string)null);
+                    b.ToTable("MenuItemPairs");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.MenuItemStats", b =>
@@ -759,7 +762,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("MenuItemId")
                         .IsUnique();
 
-                    b.ToTable("MenuItemStats", (string)null);
+                    b.ToTable("MenuItemStats");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.News", b =>
@@ -801,7 +804,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.ToTable("News", (string)null);
+                    b.ToTable("News");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Notification", b =>
@@ -841,7 +844,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("UserId", "IsRead", "CreatedAt");
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Order", b =>
@@ -941,7 +944,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("WaiterId");
 
-                    b.ToTable("Orders", (string)null);
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.OrderItem", b =>
@@ -975,7 +978,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems", (string)null);
+                    b.ToTable("OrderItems");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Payment", b =>
@@ -1031,7 +1034,7 @@ namespace Sofra.API.Data.Migrations
                         .IsUnique()
                         .HasFilter("[StripePaymentIntentId] IS NOT NULL");
 
-                    b.ToTable("Payments", (string)null);
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.PaymentMethod", b =>
@@ -1056,7 +1059,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("PaymentMethods", (string)null);
+                    b.ToTable("PaymentMethods");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.ProcessedEvent", b =>
@@ -1070,7 +1073,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasKey("EventId");
 
-                    b.ToTable("ProcessedEvents", (string)null);
+                    b.ToTable("ProcessedEvents");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Promotion", b =>
@@ -1130,7 +1133,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("MenuCategoryId");
 
-                    b.ToTable("Promotions", (string)null);
+                    b.ToTable("Promotions");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.RefreshToken", b =>
@@ -1166,7 +1169,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Reservation", b =>
@@ -1238,7 +1241,7 @@ namespace Sofra.API.Data.Migrations
                         .IsUnique()
                         .HasFilter("[Status] IN (0, 1)");
 
-                    b.ToTable("Reservations", (string)null);
+                    b.ToTable("Reservations");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Review", b =>
@@ -1295,7 +1298,7 @@ namespace Sofra.API.Data.Migrations
                         .IsUnique()
                         .HasFilter("[MenuItemId] IS NOT NULL");
 
-                    b.ToTable("Reviews", (string)null);
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Shift", b =>
@@ -1327,7 +1330,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("EmployeeId", "Date", "StartTime")
                         .IsUnique();
 
-                    b.ToTable("Shifts", (string)null);
+                    b.ToTable("Shifts");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.TableType", b =>
@@ -1348,7 +1351,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("TableTypes", (string)null);
+                    b.ToTable("TableTypes");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.UnitOfMeasure", b =>
@@ -1374,7 +1377,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Abbreviation")
                         .IsUnique();
 
-                    b.ToTable("UnitsOfMeasure", (string)null);
+                    b.ToTable("UnitsOfMeasure");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.UserInteraction", b =>
@@ -1407,7 +1410,7 @@ namespace Sofra.API.Data.Migrations
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("UserInteractions", (string)null);
+                    b.ToTable("UserInteractions");
                 });
 
             modelBuilder.Entity("Sofra.API.Entities.Zone", b =>
@@ -1431,7 +1434,7 @@ namespace Sofra.API.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Zones", (string)null);
+                    b.ToTable("Zones");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

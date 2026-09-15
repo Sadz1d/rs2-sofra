@@ -1,6 +1,9 @@
 using DotNetEnv;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Sofra.Worker.Data;
 using Sofra.Worker.Messaging;
+using Sofra.Worker.Messaging.Consumers;
 using Sofra.Worker.Options;
 
 try
@@ -29,8 +32,16 @@ builder.Services.AddOptions<SmtpOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddDbContext<WorkerDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
 builder.Services.AddSingleton<RabbitMqConnectionService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
+
+builder.Services.AddHostedService<OrderStatusChangedConsumer>();
+builder.Services.AddHostedService<ReservationProcessedConsumer>();
+builder.Services.AddHostedService<PasswordResetRequestedConsumer>();
+builder.Services.AddHostedService<LowStockDetectedConsumer>();
 
 var host = builder.Build();
 host.Run();
