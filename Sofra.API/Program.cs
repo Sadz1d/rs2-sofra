@@ -142,6 +142,7 @@ builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 builder.Services.AddScoped<IUnitOfMeasureService, UnitOfMeasureService>();
 builder.Services.AddScoped<ICountryService, CountryService>();
 builder.Services.AddScoped<ICityService, CityService>();
+builder.Services.AddScoped<IMenuItemService, MenuItemService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
