@@ -187,6 +187,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnection
 builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
 builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
 builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
