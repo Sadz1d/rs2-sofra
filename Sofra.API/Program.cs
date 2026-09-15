@@ -145,6 +145,7 @@ builder.Services.AddScoped<ICityService, CityService>();
 builder.Services.AddScoped<IMenuItemService, MenuItemService>();
 builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 builder.Services.AddScoped<IDiningTableService, DiningTableService>();
+builder.Services.AddScoped<IInventoryItemService, InventoryItemService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
