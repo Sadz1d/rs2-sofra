@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<title>Sofra - SignalR test</title>
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 900px; }
+  input { width: 520px; padding: .3rem; }
+  button { padding: .3rem .8rem; margin-left: .3rem; }
+  textarea { width: 100%; height: 350px; font-family: monospace; font-size: .85rem; margin-top: .5rem; }
+  .row { margin-bottom: .6rem; }
+  #status.ok { color: green; font-weight: bold; }
+  #status.err { color: red; font-weight: bold; }
+  code { background: #eee; padding: 0 .3rem; }
+</style>
+</head>
+<body>
+<h1>Sofra - SignalR test stranica</h1>
+<p>
+  1) Ulogujte se u <a href="/swagger" target="_blank">/swagger</a> preko <code>POST /api/auth/login</code>
+  (npr. korisnik <code>konobar</code>, lozinka <code>test</code> - da odmah vidite i <code>staff</code>/<code>kitchen</code> poruke).<br>
+  2) Zalijepite <code>accessToken</code> iz odgovora ovdje i kliknite Poveži se.<br>
+  3) U drugom tabu (Swagger) pozovite npr. <code>POST /api/orders/{id}/status</code> i pratite poruke dolje.
+</p>
+<div class="row">
+  <label>JWT access token:</label><br>
+  <input id="token" placeholder="eyJhbGci..." />
+  <button onclick="connect()">Poveži se na oba huba</button>
+  <button onclick="disconnect()">Prekini vezu</button>
+</div>
+<div class="row">Status: <span id="status">nije povezano</span></div>
+<textarea id="log" readonly></textarea>
+
+<script>
+let notificationConnection, orderConnection;
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const time = new Date().toLocaleTimeString('bs-BA');
+  el.value = `[${time}] ${msg}\n` + el.value;
+}
+
+function setStatus(text, cls) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = cls;
+}
+
+async function connect() {
+  const token = document.getElementById('token').value.trim();
+  if (!token) { alert('Unesite token.'); return; }
+
+  notificationConnection = new signalR.HubConnectionBuilder()
+    .withUrl('/hubs/notifications', { accessTokenFactory: () => token })
+    .withAutomaticReconnect()
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+
+  orderConnection = new signalR.HubConnectionBuilder()
+    .withUrl('/hubs/orders', { accessTokenFactory: () => token })
+    .withAutomaticReconnect()
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+
+  notificationConnection.on('notificationReceived', data => log('🔔 NotificationHub.notificationReceived: ' + JSON.stringify(data)));
+  orderConnection.on('orderStatusChanged', data => log('📦 OrderHub.orderStatusChanged: ' + JSON.stringify(data)));
+  orderConnection.on('tableStatusChanged', data => log('🍽 OrderHub.tableStatusChanged: ' + JSON.stringify(data)));
+  orderConnection.on('reservationCreated', data => log('📅 OrderHub.reservationCreated: ' + JSON.stringify(data)));
+
+  notificationConnection.onreconnecting(() => setStatus('ponovno povezivanje (notifications)...', 'err'));
+  orderConnection.onreconnecting(() => setStatus('ponovno povezivanje (orders)...', 'err'));
+
+  try {
+    await notificationConnection.start();
+    await orderConnection.start();
+    setStatus('povezano', 'ok');
+    log('Povezano na oba huba.');
+  } catch (err) {
+    setStatus('greška pri povezivanju', 'err');
+    log('Greška pri povezivanju: ' + err);
+  }
+}
+
+async function disconnect() {
+  if (notificationConnection) await notificationConnection.stop();
+  if (orderConnection) await orderConnection.stop();
+  setStatus('nije povezano', '');
+  log('Veza prekinuta.');
+}
+</script>
+</body>
+</html>
