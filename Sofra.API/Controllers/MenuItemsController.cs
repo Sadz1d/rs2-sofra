@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Sofra.API.Constants;
 using Sofra.API.DTOs;
@@ -63,6 +64,14 @@ public class MenuItemsController(IMenuItemService service) : ControllerBase
     public async Task<ActionResult<IReadOnlyList<MenuItemIngredientResponse>>> UpdateIngredients(int id, UpdateMenuItemIngredientsRequest request, CancellationToken cancellationToken)
     {
         var result = await service.UpdateIngredientsAsync(id, request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/image")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<MenuItemResponse>> UploadImage(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var result = await service.SetImageAsync(id, file, cancellationToken);
         return Ok(result);
     }
 }

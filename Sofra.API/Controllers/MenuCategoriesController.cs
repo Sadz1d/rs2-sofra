@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Sofra.API.Constants;
 using Sofra.API.DTOs;
@@ -49,5 +50,13 @@ public class MenuCategoriesController(IMenuCategoryService service) : Controller
     {
         await service.DeleteAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:int}/image")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<MenuCategoryResponse>> UploadImage(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var result = await service.SetImageAsync(id, file, cancellationToken);
+        return Ok(result);
     }
 }

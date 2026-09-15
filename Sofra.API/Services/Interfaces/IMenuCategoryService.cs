@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Sofra.API.DTOs;
 using Sofra.API.DTOs.Catalog;
 using Sofra.API.Requests;
@@ -12,4 +13,6 @@ public interface IMenuCategoryService
     Task<MenuCategoryResponse> CreateAsync(MenuCategoryRequest request, CancellationToken cancellationToken = default);
     Task<MenuCategoryResponse> UpdateAsync(int id, MenuCategoryRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<MenuCategoryResponse> SetImageAsync(int id, IFormFile file, CancellationToken cancellationToken = default);
 }

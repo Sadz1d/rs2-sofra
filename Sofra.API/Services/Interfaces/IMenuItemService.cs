@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Sofra.API.DTOs;
 using Sofra.API.DTOs.Menu;
 using Sofra.API.Requests.Menu;
@@ -14,4 +15,6 @@ public interface IMenuItemService
 
     Task<IReadOnlyList<MenuItemIngredientResponse>> GetIngredientsAsync(int id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<MenuItemIngredientResponse>> UpdateIngredientsAsync(int id, UpdateMenuItemIngredientsRequest request, CancellationToken cancellationToken = default);
+
+    Task<MenuItemResponse> SetImageAsync(int id, IFormFile file, CancellationToken cancellationToken = default);
 }

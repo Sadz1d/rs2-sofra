@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Sofra.API.Data;
 using Sofra.API.DTOs;
@@ -11,7 +12,7 @@ using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class MenuItemService(AppDbContext dbContext) : IMenuItemService
+public class MenuItemService(AppDbContext dbContext, IImageUploadService imageUploadService) : IMenuItemService
 {
     private static readonly Expression<Func<MenuItem, MenuItemResponse>> ProjectToResponse = x => new MenuItemResponse(
         x.Id,
@@ -185,6 +186,19 @@ public class MenuItemService(AppDbContext dbContext) : IMenuItemService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await GetIngredientsAsync(id, cancellationToken);
+    }
+
+    public async Task<MenuItemResponse> SetImageAsync(int id, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var entity = await dbContext.MenuItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"Jelo sa Id {id} ne postoji.");
+
+        var newUrl = await imageUploadService.SaveAsync(file, "menu-items", cancellationToken);
+        imageUploadService.DeleteIfExists(entity.ImageUrl);
+        entity.ImageUrl = newUrl;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     private static IQueryable<MenuItem> ApplySort(IQueryable<MenuItem> query, string? sortBy, bool descending)

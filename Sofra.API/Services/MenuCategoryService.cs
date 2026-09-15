@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Sofra.API.Data;
 using Sofra.API.DTOs.Catalog;
@@ -10,7 +11,7 @@ using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class MenuCategoryService(AppDbContext dbContext)
+public class MenuCategoryService(AppDbContext dbContext, IImageUploadService imageUploadService)
     : LookupService<MenuCategory, MenuCategoryResponse, MenuCategoryRequest>(dbContext), IMenuCategoryService
 {
     protected override DbSet<MenuCategory> Set => DbContext.MenuCategories;
@@ -59,5 +60,18 @@ public class MenuCategoryService(AppDbContext dbContext)
     {
         var count = await DbContext.MenuItems.CountAsync(x => x.MenuCategoryId == id, cancellationToken);
         return new LookupUsage(count, "jelo", "jela", "jela");
+    }
+
+    public async Task<MenuCategoryResponse> SetImageAsync(int id, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        var entity = await DbContext.MenuCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            ?? throw new NotFoundException(NotFoundMessage(id));
+
+        var newUrl = await imageUploadService.SaveAsync(file, "menu-categories", cancellationToken);
+        imageUploadService.DeleteIfExists(entity.ImageUrl);
+        entity.ImageUrl = newUrl;
+
+        await DbContext.SaveChangesAsync(cancellationToken);
+        return await GetByIdAsync(id, cancellationToken);
     }
 }
