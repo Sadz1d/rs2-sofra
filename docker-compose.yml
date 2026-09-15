@@ -51,6 +51,7 @@ services:
       Restaurant__CloseTime: ${Restaurant__CloseTime:-23:00:00}
       Reservation__SlotIntervalMinutes: ${Reservation__SlotIntervalMinutes:-30}
       Reservation__UpcomingWindowMinutes: ${Reservation__UpcomingWindowMinutes:-30}
+      Reservation__RecalculationIntervalMinutes: ${Reservation__RecalculationIntervalMinutes:-5}
     ports:
       - "${API_PORT:-5000}:8080"
     volumes:

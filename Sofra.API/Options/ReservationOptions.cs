@@ -11,4 +11,7 @@ public sealed class ReservationOptions
 
     /// <summary>Koliko minuta prije pocetka potvrdjene rezervacije sto prelazi u status Reserved.</summary>
     [Range(5, 240)] public int UpcomingWindowMinutes { get; set; } = 30;
+
+    /// <summary>Koliko cesto (u minutama) pozadinski servis preracunava status stolova za protok vremena bez ikakve akcije.</summary>
+    [Range(1, 60)] public int RecalculationIntervalMinutes { get; set; } = 5;
 }

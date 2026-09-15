@@ -187,6 +187,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddHostedService<OrderStatusChangedNotifyConsumer>();
 builder.Services.AddHostedService<ReservationProcessedNotifyConsumer>();
 builder.Services.AddHostedService<LowStockDetectedNotifyConsumer>();
+builder.Services.AddHostedService<TableStatusRecalculationHostedService>();
 
 builder.Services.AddSignalR();
 
