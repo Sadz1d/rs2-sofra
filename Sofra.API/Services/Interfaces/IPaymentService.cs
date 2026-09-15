@@ -7,4 +7,6 @@ public interface IPaymentService
 {
     Task<PaymentIntentResponse> CreateIntentAsync(PaymentIntentRequest request, int actorUserId, bool isStaff, CancellationToken cancellationToken = default);
     Task HandleWebhookAsync(string json, string signature, CancellationToken cancellationToken = default);
+    Task<PaymentResponse> CreateCashPaymentAsync(CashPaymentRequest request, CancellationToken cancellationToken = default);
+    Task<PaymentResponse> RefundAsync(int paymentId, RefundRequest request, CancellationToken cancellationToken = default);
 }

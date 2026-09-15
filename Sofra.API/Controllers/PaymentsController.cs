@@ -32,4 +32,20 @@ public class PaymentsController(IPaymentService service) : ControllerBase
         await service.HandleWebhookAsync(json, signature, cancellationToken);
         return Ok();
     }
+
+    [HttpPost("cash")]
+    [Authorize(Roles = $"{Roles.Konobar},{Roles.Admin}")]
+    public async Task<ActionResult<PaymentResponse>> CreateCash(CashPaymentRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.CreateCashPaymentAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/refund")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<PaymentResponse>> Refund(int id, RefundRequest request, CancellationToken cancellationToken)
+    {
+        var result = await service.RefundAsync(id, request, cancellationToken);
+        return Ok(result);
+    }
 }

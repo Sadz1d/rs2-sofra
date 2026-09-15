@@ -139,5 +139,100 @@ public class PaymentService(
         }
     }
 
+    public async Task<PaymentResponse> CreateCashPaymentAsync(CashPaymentRequest request, CancellationToken cancellationToken = default)
+    {
+        var order = await dbContext.Orders.Include(x => x.Payment).FirstOrDefaultAsync(x => x.Id == request.OrderId, cancellationToken)
+            ?? throw new NotFoundException($"Narudžba sa Id {request.OrderId} ne postoji.");
+
+        if (order.Payment is not null)
+        {
+            throw new BusinessException("Narudžba već ima plaćanje.");
+        }
+
+        var cashMethod = await dbContext.PaymentMethods.FirstOrDefaultAsync(x => x.Code == "CASH", cancellationToken)
+            ?? throw new BusinessException("Način plaćanja 'Gotovina' nije podešen u šifarniku.");
+
+        var payment = new Payment
+        {
+            CreatedAt = DateTime.UtcNow,
+            OrderId = order.Id,
+            PaymentMethodId = cashMethod.Id,
+            Amount = order.Total,
+            Status = PaymentStatus.Succeeded,
+            PaidAt = DateTime.UtcNow,
+        };
+
+        dbContext.Payments.Add(payment);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(payment, order.Number, cashMethod.Name);
+    }
+
+    public async Task<PaymentResponse> RefundAsync(int paymentId, RefundRequest request, CancellationToken cancellationToken = default)
+    {
+        var payment = await dbContext.Payments.Include(x => x.Order).Include(x => x.PaymentMethod).FirstOrDefaultAsync(x => x.Id == paymentId, cancellationToken)
+            ?? throw new NotFoundException($"Plaćanje sa Id {paymentId} ne postoji.");
+
+        if (payment.Status is not (PaymentStatus.Succeeded or PaymentStatus.Refunded))
+        {
+            throw new BusinessException($"Plaćanje u statusu '{payment.Status}' se ne može refundirati.");
+        }
+
+        var alreadyRefunded = payment.RefundedAmount ?? 0;
+        var remaining = payment.Amount - alreadyRefunded;
+        var refundAmount = request.Amount ?? remaining;
+
+        if (refundAmount <= 0)
+        {
+            throw new BusinessException("Iznos povrata mora biti veći od 0.");
+        }
+
+        if (refundAmount > remaining)
+        {
+            throw new BusinessException($"Iznos povrata ({refundAmount:0.00}) premašuje preostali plaćeni iznos ({remaining:0.00}).");
+        }
+
+        if (payment.PaymentMethod.Code == "CARD")
+        {
+            if (string.IsNullOrWhiteSpace(payment.StripePaymentIntentId))
+            {
+                throw new BusinessException("Kartično plaćanje nema Stripe PaymentIntent Id.");
+            }
+
+            Refund refund;
+            try
+            {
+                var refundService = new RefundService();
+                refund = await refundService.CreateAsync(new RefundCreateOptions
+                {
+                    PaymentIntent = payment.StripePaymentIntentId,
+                    Amount = ToStripeAmount(refundAmount),
+                }, cancellationToken: cancellationToken);
+            }
+            catch (StripeException ex)
+            {
+                throw new BusinessException($"Stripe povrat nije uspio: {ex.StripeError?.Message ?? ex.Message}");
+            }
+
+            payment.StripeRefundId = refund.Id;
+        }
+
+        payment.RefundedAmount = alreadyRefunded + refundAmount;
+        payment.RefundedAt = DateTime.UtcNow;
+        payment.Status = PaymentStatus.Refunded;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(payment, payment.Order.Number, payment.PaymentMethod.Name);
+    }
+
     private static long ToStripeAmount(decimal amount) => (long)Math.Round(amount * 100, MidpointRounding.AwayFromZero);
+
+    private static PaymentResponse ToResponse(Payment payment, string orderNumber, string paymentMethodName) => new(
+        payment.Id, payment.OrderId, orderNumber,
+        payment.PaymentMethodId, paymentMethodName,
+        payment.Amount, payment.Status,
+        payment.StripePaymentIntentId,
+        payment.RefundedAmount, payment.StripeRefundId,
+        payment.PaidAt, payment.RefundedAt, payment.CreatedAt);
 }
