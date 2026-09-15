@@ -11,6 +11,7 @@ using Sofra.API.DTOs;
 using Sofra.API.Entities;
 using Sofra.API.Filters;
 using Sofra.API.Identity;
+using Sofra.API.Messaging;
 using Sofra.API.Middleware;
 using Sofra.API.Options;
 using Sofra.API.Services;
@@ -163,6 +164,10 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IDiningTableStatusService, DiningTableStatusService>();
 builder.Services.AddScoped<IReservationStateMachine, ReservationStateMachine>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
+
+builder.Services.AddSingleton<RabbitMqConnectionService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RabbitMqConnectionService>());
+builder.Services.AddScoped<IEventPublisher, EventPublisher>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 

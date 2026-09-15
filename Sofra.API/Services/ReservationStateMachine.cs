@@ -104,5 +104,8 @@ public class ReservationStateMachine : IReservationStateMachine
         }
     }
 
+    /// <summary>Bosanski naziv statusa, za e-mail/notifikacije i poruke o nedozvoljenim prelazima.</summary>
+    public static string GetStatusLabel(ReservationStatus status) => Label(status);
+
     private static string Label(ReservationStatus status) => Labels.GetValueOrDefault(status, status.ToString());
 }

@@ -9,6 +9,7 @@ using Sofra.API.Exceptions;
 using Sofra.API.Options;
 using Sofra.API.Requests.Orders;
 using Sofra.API.Services.Interfaces;
+using Sofra.Shared.Events;
 
 namespace Sofra.API.Services;
 
@@ -16,6 +17,7 @@ public class OrderService(
     AppDbContext dbContext,
     IOrderStateMachine stateMachine,
     IDiningTableStatusService diningTableStatusService,
+    IEventPublisher eventPublisher,
     IOptions<OrderOptions> orderOptions) : IOrderService
 {
     private readonly decimal _taxRatePercent = orderOptions.Value.TaxRatePercent;
@@ -147,10 +149,12 @@ public class OrderService(
 
     public async Task<OrderResponse> TransitionAsync(int id, OrderTransitionRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
-        var order = await dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var order = await dbContext.Orders.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Narudžba sa Id {id} ne postoji.");
 
+        var oldStatusLabel = OrderStateMachine.GetStatusLabel(order.Status);
         stateMachine.Apply(order, request.Status, actorUserId, actorRoles, request.CancelReason);
+        var newStatusLabel = OrderStateMachine.GetStatusLabel(order.Status);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -158,6 +162,15 @@ public class OrderService(
         {
             await diningTableStatusService.RecalculateAsync(order.DiningTableId.Value, cancellationToken);
         }
+
+        // Objavljivanje ide tek nakon uspjesnog SaveChangesAsync, nikad unutar transakcije.
+        await eventPublisher.PublishAsync(
+            new OrderStatusChangedEvent(
+                Guid.NewGuid(), DateTime.UtcNow,
+                order.Id, order.Number, order.UserId, order.User.Email ?? string.Empty, $"{order.User.FirstName} {order.User.LastName}",
+                oldStatusLabel, newStatusLabel, order.CancelReason),
+            EventRoutingKeys.OrderStatusChanged,
+            cancellationToken);
 
         return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
     }

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Sofra.API.Constants;
 using Sofra.API.Data;
 using Sofra.API.DTOs;
 using Sofra.API.DTOs.Inventory;
@@ -8,10 +9,11 @@ using Sofra.API.Enums;
 using Sofra.API.Exceptions;
 using Sofra.API.Requests.Inventory;
 using Sofra.API.Services.Interfaces;
+using Sofra.Shared.Events;
 
 namespace Sofra.API.Services;
 
-public class InventoryItemService(AppDbContext dbContext) : IInventoryItemService
+public class InventoryItemService(AppDbContext dbContext, IEventPublisher eventPublisher) : IInventoryItemService
 {
     private static readonly Expression<Func<InventoryItem, InventoryItemResponse>> ProjectToResponse = x => new InventoryItemResponse(
         x.Id, x.Name,
@@ -113,7 +115,7 @@ public class InventoryItemService(AppDbContext dbContext) : IInventoryItemServic
 
     public async Task<InventoryItemResponse> AdjustAsync(int id, AdjustInventoryRequest request, int userId, CancellationToken cancellationToken = default)
     {
-        var entity = await dbContext.InventoryItems.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var entity = await dbContext.InventoryItems.Include(x => x.UnitOfMeasure).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Namirnica sa Id {id} ne postoji.");
 
         var newQuantity = request.Type switch
@@ -144,6 +146,22 @@ public class InventoryItemService(AppDbContext dbContext) : IInventoryItemServic
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (newQuantity <= entity.MinQuantity)
+        {
+            var adminUserIds = await dbContext.UserRoles
+                .Where(ur => dbContext.Roles.Any(r => r.Id == ur.RoleId && r.Name == Roles.Admin))
+                .Select(ur => ur.UserId)
+                .ToListAsync(cancellationToken);
+
+            // Objavljivanje ide tek nakon uspjesnog SaveChangesAsync, nikad unutar transakcije.
+            await eventPublisher.PublishAsync(
+                new LowStockDetectedEvent(
+                    Guid.NewGuid(), DateTime.UtcNow,
+                    entity.Id, entity.Name, entity.Quantity, entity.MinQuantity, entity.UnitOfMeasure.Abbreviation, adminUserIds),
+                EventRoutingKeys.LowStockDetected,
+                cancellationToken);
+        }
 
         return await GetByIdAsync(id, cancellationToken);
     }

@@ -9,6 +9,7 @@ using Sofra.API.Exceptions;
 using Sofra.API.Options;
 using Sofra.API.Requests.Reservations;
 using Sofra.API.Services.Interfaces;
+using Sofra.Shared.Events;
 
 namespace Sofra.API.Services;
 
@@ -16,6 +17,7 @@ public class ReservationService(
     AppDbContext dbContext,
     IReservationStateMachine stateMachine,
     IDiningTableStatusService diningTableStatusService,
+    IEventPublisher eventPublisher,
     IOptions<RestaurantOptions> restaurantOptions,
     IOptions<ReservationOptions> reservationOptions) : IReservationService
 {
@@ -250,7 +252,7 @@ public class ReservationService(
 
     public async Task<ReservationResponse> TransitionAsync(int id, ReservationTransitionRequest request, int actorUserId, IReadOnlyCollection<string> actorRoles, CancellationToken cancellationToken = default)
     {
-        var reservation = await dbContext.Reservations.FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+        var reservation = await dbContext.Reservations.Include(x => x.User).FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Rezervacija sa Id {id} ne postoji.");
 
         stateMachine.Apply(reservation, request.Status, actorUserId, actorRoles, request.RejectReason, request.AlternativeAt);
@@ -261,6 +263,16 @@ public class ReservationService(
         {
             await diningTableStatusService.RecalculateAsync(reservation.DiningTableId.Value, cancellationToken);
         }
+
+        // Objavljivanje ide tek nakon uspjesnog SaveChangesAsync, nikad unutar transakcije.
+        await eventPublisher.PublishAsync(
+            new ReservationProcessedEvent(
+                Guid.NewGuid(), DateTime.UtcNow,
+                reservation.Id, reservation.UserId, reservation.User.Email ?? string.Empty, $"{reservation.User.FirstName} {reservation.User.LastName}",
+                reservation.ReservationAt, ReservationStateMachine.GetStatusLabel(reservation.Status),
+                reservation.RejectReason, reservation.AlternativeAt),
+            EventRoutingKeys.ReservationProcessed,
+            cancellationToken);
 
         return await GetByIdAsync(id, actorUserId, isStaff: true, cancellationToken);
     }
