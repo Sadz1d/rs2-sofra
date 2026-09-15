@@ -152,6 +152,7 @@ builder.Services.AddScoped<IDiningTableService, DiningTableService>();
 builder.Services.AddScoped<IInventoryItemService, InventoryItemService>();
 builder.Services.AddScoped<IOrderStateMachine, OrderStateMachine>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IReservationStateMachine, ReservationStateMachine>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
