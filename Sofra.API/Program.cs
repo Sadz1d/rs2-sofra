@@ -63,6 +63,10 @@ builder.Services.AddOptions<ApiOptions>()
     .Bind(builder.Configuration.GetSection(ApiOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+builder.Services.AddOptions<OrderOptions>()
+    .Bind(builder.Configuration.GetSection(OrderOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 const string CorsPolicyName = "SofraCors";
 var corsAllowedOrigins = builder.Configuration.GetValue<string>($"{CorsOptions.SectionName}:AllowedOrigins") ?? string.Empty;
@@ -147,6 +151,7 @@ builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 builder.Services.AddScoped<IDiningTableService, DiningTableService>();
 builder.Services.AddScoped<IInventoryItemService, InventoryItemService>();
 builder.Services.AddScoped<IOrderStateMachine, OrderStateMachine>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 

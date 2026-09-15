@@ -46,6 +46,7 @@ services:
       # unutar compose mreže servisi se zovu po imenu — override vrijednosti iz .env koje pokazuju na localhost
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${SQL_DATABASE};User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       RabbitMq__Host: rabbitmq
+      Order__TaxRatePercent: ${Order__TaxRatePercent:-17}
     ports:
       - "${API_PORT:-5000}:8080"
     volumes:
