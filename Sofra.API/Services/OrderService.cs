@@ -74,7 +74,7 @@ public class OrderService(
             x.Id, x.Number, x.Type, x.Status,
             x.UserId, x.User.FirstName + " " + x.User.LastName,
             x.DiningTableId, x.DiningTable == null ? null : x.DiningTable.Number,
-            x.Total, x.CreatedAt, x.Items.Count));
+            x.Total, x.Payment != null && x.Payment.Status == PaymentStatus.Succeeded, x.CreatedAt, x.Items.Count));
 
         return await projected.ToPagedResultAsync(request, cancellationToken);
     }
@@ -106,11 +106,13 @@ public class OrderService(
         var calc = await BuildCalculationAsync(request, actorUserId, cancellationToken);
 
         int? diningTableId = null;
+        int? diningTableNumber = null;
         if (request.Type == OrderType.DineIn)
         {
             var table = await dbContext.DiningTables.FirstOrDefaultAsync(x => x.QrCode == request.TableCode && x.IsActive, cancellationToken)
                 ?? throw new BusinessException($"Sto sa QR kodom '{request.TableCode}' ne postoji ili nije aktivan.");
             diningTableId = table.Id;
+            diningTableNumber = table.Number;
         }
 
         var order = new Order
@@ -147,6 +149,10 @@ public class OrderService(
 
         dbContext.Orders.Add(order);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Konobar prati novopristigle (Pending) narudzbe na svom kanban ekranu - lagana najava, klijent po prijemu dovuce puni sadrzaj.
+        await orderHub.Clients.Group("staff").SendAsync(
+            "orderCreated", new OrderCreatedMessage(order.Id, order.Number, diningTableNumber), cancellationToken);
 
         return await GetByIdAsync(order.Id, actorUserId, isStaff: true, cancellationToken);
     }
@@ -290,6 +296,7 @@ public class OrderService(
             .Include(x => x.DiningTable)
             .Include(x => x.Waiter)
             .Include(x => x.Promotion)
+            .Include(x => x.Payment).ThenInclude(x => x!.PaymentMethod)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     private static OrderResponse ToResponse(Order order) => new(
@@ -300,6 +307,7 @@ public class OrderService(
         order.Note,
         order.Subtotal, order.Discount, order.Tax, order.Total,
         order.PromotionId, order.Promotion?.Code,
+        order.Payment?.Status == PaymentStatus.Succeeded, order.Payment?.PaymentMethod.Name,
         order.CreatedAt,
         order.ConfirmedAt, order.PreparationStartedAt, order.ReadyAt, order.DeliveredAt, order.CompletedAt, order.CancelledAt, order.CancelReason,
         order.Items.Select(i => new OrderItemResponse(i.Id, i.MenuItemId, i.MenuItem.Name, i.Quantity, i.UnitPrice, i.UnitPrice * i.Quantity, i.Note)).ToList());
