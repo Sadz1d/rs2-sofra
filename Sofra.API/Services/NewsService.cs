@@ -58,7 +58,6 @@ public class NewsService(AppDbContext dbContext, IImageUploadService imageUpload
         {
             Title = request.Title,
             Text = request.Text,
-            ImageUrl = string.Empty,
             PublishAt = request.PublishAt,
             IsPublished = request.IsPublished,
             SendPush = request.SendPush,
