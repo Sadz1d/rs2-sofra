@@ -1,30 +1,44 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-import 'package:sofra_desktop/main.dart';
+import 'package:sofra_desktop/app.dart';
+import 'package:sofra_desktop/providers/auth_provider.dart';
+import 'package:sofra_desktop/providers/notification_provider.dart';
+import 'package:sofra_desktop/services/api_client.dart';
+import 'package:sofra_desktop/services/auth_service.dart';
+import 'package:sofra_desktop/services/signalr_service.dart';
+import 'package:sofra_desktop/services/token_store.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Prikazuje pocetni (splash) ekran prije provjere prijave', (tester) async {
+    final tokenStore = TokenStore();
+    final apiClient = ApiClient(tokenStore: tokenStore);
+    final signalRService = SignalRService(tokenStore: tokenStore);
+    final authService = AuthService(apiClient: apiClient, tokenStore: tokenStore);
+    final authProvider = AuthProvider(
+      authService: authService,
+      tokenStore: tokenStore,
+      signalRService: signalRService,
+    );
+    final notificationProvider = NotificationProvider(
+      apiClient: apiClient,
+      signalRService: signalRService,
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ApiClient>.value(value: apiClient),
+          Provider<SignalRService>.value(value: signalRService),
+          ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+          ChangeNotifierProvider<NotificationProvider>.value(value: notificationProvider),
+        ],
+        child: const SofraApp(),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Status prijave je jos AuthStatus.unknown (bootstrap se ne poziva u testu) - ocekuje se splash ekran.
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }
