@@ -44,6 +44,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<MenuItemStats> MenuItemStats => Set<MenuItemStats>();
     public DbSet<MenuItemPair> MenuItemPairs => Set<MenuItemPair>();
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+    public DbSet<ProcessedStripeEvent> ProcessedStripeEvents => Set<ProcessedStripeEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

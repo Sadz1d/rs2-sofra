@@ -46,6 +46,7 @@ builder.Services.AddHostedService<OrderStatusChangedConsumer>();
 builder.Services.AddHostedService<ReservationProcessedConsumer>();
 builder.Services.AddHostedService<PasswordResetRequestedConsumer>();
 builder.Services.AddHostedService<LowStockDetectedConsumer>();
+builder.Services.AddHostedService<PaymentSucceededConsumer>();
 
 var host = builder.Build();
 host.Run();

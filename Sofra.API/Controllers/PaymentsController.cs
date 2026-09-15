@@ -20,4 +20,16 @@ public class PaymentsController(IPaymentService service) : ControllerBase
         var result = await service.CreateIntentAsync(request, User.GetUserId(), isStaff, cancellationToken);
         return Ok(result);
     }
+
+    [HttpPost("webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Webhook(CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(Request.Body);
+        var json = await reader.ReadToEndAsync(cancellationToken);
+        var signature = Request.Headers["Stripe-Signature"].ToString();
+
+        await service.HandleWebhookAsync(json, signature, cancellationToken);
+        return Ok();
+    }
 }

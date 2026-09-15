@@ -1,9 +1,6 @@
 namespace Sofra.Shared.Events;
 
-/// <summary>
-/// Rezervisan za Stripe/placanje korak (jos nije implementiran - Payment/PaymentIntent flow ne postoji u API-ju).
-/// Definisan sada da model dogadjaja bude kompletan; nista ga trenutno ne objavljuje niti konzumira.
-/// </summary>
+/// <summary>Placanje (kartica preko Stripe webhook-a) je uspjesno zavrseno.</summary>
 public record PaymentSucceededEvent(
     Guid EventId,
     DateTime OccurredAt,
