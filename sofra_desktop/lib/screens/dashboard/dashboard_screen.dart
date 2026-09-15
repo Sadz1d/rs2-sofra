@@ -2,11 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../constants/roles.dart';
+import '../../models/dashboard_data.dart';
 import '../../models/reservation_status.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/dashboard_provider.dart';
-import '../../providers/orders_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatting.dart';
 import '../../widgets/empty_view.dart';
@@ -22,34 +20,33 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool get _isAdmin =>
-      context.read<AuthProvider>().currentUser?.roles.contains(Roles.admin) ?? false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().loadAll(isAdmin: _isAdmin);
-      context.read<OrdersProvider>().loadBoard();
+      context.read<DashboardProvider>().load();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final dashboard = context.watch<DashboardProvider>();
+    final data = dashboard.data;
 
-    if (dashboard.loading && dashboard.error == null && dashboard.reservationsTodayPreview.isEmpty) {
+    if (dashboard.loading && data == null) {
       return const LoadingView(message: 'Učitavanje pregleda...');
     }
 
-    if (dashboard.error != null) {
+    if (dashboard.error != null && data == null) {
       return ErrorView(
         message: dashboard.error!,
-        onRetry: () => context.read<DashboardProvider>().loadAll(isAdmin: _isAdmin),
+        onRetry: () => context.read<DashboardProvider>().load(),
       );
     }
 
-    final showRevenue = dashboard.canSeeRevenue;
+    if (data == null) {
+      return const EmptyView(message: 'Nema podataka za prikaz.');
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -59,24 +56,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _KpiRow(dashboard: dashboard, showRevenue: showRevenue),
+              _RangeSelector(dashboard: dashboard),
+              const SizedBox(height: 16),
+              _KpiRow(data: data),
               const SizedBox(height: 20),
               if (isWide)
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (showRevenue) ...[
-                        Expanded(flex: 3, child: _RevenueChartCard(dashboard: dashboard)),
+                      if (data.hasFinancials) ...[
+                        Expanded(flex: 3, child: _RevenueChartCard(dashboard: dashboard, data: data)),
                         const SizedBox(width: 20),
                       ],
                       Expanded(
                         flex: 2,
                         child: Column(
                           children: [
-                            const _ActiveOrdersCard(),
+                            _ActiveOrdersCard(data: data),
                             const SizedBox(height: 20),
-                            _ReservationsTodayCard(dashboard: dashboard),
+                            _ReservationsCard(data: data),
                           ],
                         ),
                       ),
@@ -85,10 +84,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         flex: 2,
                         child: Column(
                           children: [
-                            _LowStockCard(dashboard: dashboard),
-                            if (showRevenue) ...[
+                            _LowStockCard(data: data),
+                            if (data.hasFinancials) ...[
                               const SizedBox(height: 20),
-                              _TopItemsTodayCard(dashboard: dashboard),
+                              _TopItemsCard(data: data),
                             ],
                           ],
                         ),
@@ -99,18 +98,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               else
                 Column(
                   children: [
-                    if (showRevenue) ...[
-                      _RevenueChartCard(dashboard: dashboard),
+                    if (data.hasFinancials) ...[
+                      _RevenueChartCard(dashboard: dashboard, data: data),
                       const SizedBox(height: 20),
                     ],
-                    const _ActiveOrdersCard(),
+                    _ActiveOrdersCard(data: data),
                     const SizedBox(height: 20),
-                    _ReservationsTodayCard(dashboard: dashboard),
+                    _ReservationsCard(data: data),
                     const SizedBox(height: 20),
-                    _LowStockCard(dashboard: dashboard),
-                    if (showRevenue) ...[
+                    _LowStockCard(data: data),
+                    if (data.hasFinancials) ...[
                       const SizedBox(height: 20),
-                      _TopItemsTodayCard(dashboard: dashboard),
+                      _TopItemsCard(data: data),
                     ],
                   ],
                 ),
@@ -122,17 +121,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _KpiRow extends StatelessWidget {
-  const _KpiRow({required this.dashboard, required this.showRevenue});
+class _RangeSelector extends StatelessWidget {
+  const _RangeSelector({required this.dashboard});
 
   final DashboardProvider dashboard;
-  final bool showRevenue;
 
   @override
   Widget build(BuildContext context) {
-    final deltaSign = dashboard.revenueDeltaPercent >= 0 ? '+' : '';
-    final ordersDeltaSign = dashboard.ordersDelta >= 0 ? '+' : '';
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SegmentedButton<DashboardRange>(
+        segments: const [
+          ButtonSegment(value: DashboardRange.today, label: Text('Danas')),
+          ButtonSegment(value: DashboardRange.days7, label: Text('7 dana')),
+          ButtonSegment(value: DashboardRange.days30, label: Text('30 dana')),
+          ButtonSegment(value: DashboardRange.year, label: Text('Godina')),
+        ],
+        selected: {dashboard.range},
+        showSelectedIcon: false,
+        onSelectionChanged: (selection) => context.read<DashboardProvider>().setRange(selection.first),
+      ),
+    );
+  }
+}
 
+class _KpiRow extends StatelessWidget {
+  const _KpiRow({required this.data});
+
+  final DashboardData data;
+
+  @override
+  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 1100
@@ -143,39 +162,44 @@ class _KpiRow extends StatelessWidget {
         final cardWidth = (constraints.maxWidth - (columns - 1) * 16) / columns;
 
         final cards = [
-          if (showRevenue) ...[
+          if (data.hasFinancials) ...[
             StatCard(
-              title: 'Promet danas',
-              value: formatMoney(dashboard.revenueToday),
-              subtitle: '$deltaSign${dashboard.revenueDeltaPercent.toStringAsFixed(0)} % vs jučer',
+              title: 'Promet',
+              value: formatMoney(data.revenue!),
+              subtitle: '${formatInt(data.ordersCount)} narudžbi',
               icon: Icons.trending_up,
               iconColor: AppColors.primary,
             ),
             StatCard(
-              title: 'Narudžbe danas',
-              value: formatInt(dashboard.ordersToday),
-              subtitle: '$ordersDeltaSign${dashboard.ordersDelta}',
+              title: 'Prosječna vrijednost narudžbe',
+              value: formatMoney(data.averageOrderValue ?? 0),
               icon: Icons.receipt_long_outlined,
               iconColor: Colors.blue,
             ),
-          ],
+          ] else
+            StatCard(
+              title: 'Narudžbe',
+              value: formatInt(data.ordersCount),
+              icon: Icons.receipt_long_outlined,
+              iconColor: Colors.blue,
+            ),
           StatCard(
-            title: 'Rezervacije danas',
-            value: formatInt(dashboard.reservationsTodayCount),
-            subtitle: '${dashboard.reservationsPendingCount} na čekanju',
+            title: 'Rezervacije',
+            value: formatInt(data.reservationsCount),
+            subtitle: '${data.reservationsPendingCount} na čekanju',
             icon: Icons.event_available_outlined,
             iconColor: AppColors.success,
           ),
           StatCard(
             title: 'Zauzetost stolova',
-            value: '${dashboard.tableOccupancyPercent.toStringAsFixed(0)} %',
-            subtitle: '${dashboard.tablesOccupied} od ${dashboard.tablesTotal} stolova',
+            value: '${data.tableOccupancyPercent.toStringAsFixed(0)} %',
+            subtitle: '${data.tablesOccupied} od ${data.tablesTotal} stolova',
             icon: Icons.grid_view_outlined,
             iconColor: Colors.amber.shade800,
           ),
           StatCard(
             title: 'Zalihe ispod minimuma',
-            value: formatInt(dashboard.lowStockCount),
+            value: formatInt(data.lowStockCount),
             subtitle: 'artikla',
             icon: Icons.warning_amber_outlined,
             iconColor: AppColors.danger,
@@ -193,14 +217,17 @@ class _KpiRow extends StatelessWidget {
 }
 
 class _RevenueChartCard extends StatelessWidget {
-  const _RevenueChartCard({required this.dashboard});
+  const _RevenueChartCard({required this.dashboard, required this.data});
 
   final DashboardProvider dashboard;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
-    final data = dashboard.chartData;
-    final maxY = data.isEmpty ? 100.0 : (data.map((e) => e.total).reduce((a, b) => a > b ? a : b) * 1.2);
+    final points = data.chart;
+    final maxY = points.isEmpty
+        ? 100.0
+        : (points.map((e) => e.total ?? 0).reduce((a, b) => a > b ? a : b) * 1.2).clamp(1.0, double.infinity);
 
     return Card(
       child: Padding(
@@ -208,89 +235,64 @@ class _RevenueChartCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_titleFor(dashboard.chartRange), style: Theme.of(context).textTheme.titleMedium),
-                      Text('u KM, uključujući PDV', style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                SegmentedButton<RevenueChartRange>(
-                  segments: const [
-                    ButtonSegment(value: RevenueChartRange.days7, label: Text('7 dana')),
-                    ButtonSegment(value: RevenueChartRange.days30, label: Text('30 dana')),
-                    ButtonSegment(value: RevenueChartRange.year, label: Text('Godina')),
-                  ],
-                  selected: {dashboard.chartRange},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      context.read<DashboardProvider>().setChartRange(selection.first),
-                ),
-              ],
-            ),
+            Text('Promet', style: Theme.of(context).textTheme.titleMedium),
+            Text('u KM, uključujući PDV', style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 20),
             SizedBox(
               height: 260,
-              child: dashboard.chartLoading
-                  ? const LoadingView()
-                  : data.isEmpty
-                      ? const EmptyView(message: 'Nema podataka o prometu za odabrani period.')
-                      : BarChart(
-                          BarChartData(
-                            maxY: maxY,
-                            gridData: const FlGridData(show: false),
-                            borderData: FlBorderData(show: false),
-                            barTouchData: BarTouchData(
-                              touchTooltipData: BarTouchTooltipData(
-                                getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
-                                  formatMoney(rod.toY),
-                                  const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                                ),
-                              ),
+              child: points.isEmpty
+                  ? const EmptyView(message: 'Nema podataka o prometu za odabrani period.')
+                  : BarChart(
+                      BarChartData(
+                        maxY: maxY.toDouble(),
+                        gridData: const FlGridData(show: false),
+                        borderData: FlBorderData(show: false),
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                              formatMoney(rod.toY),
+                              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                             ),
-                            titlesData: FlTitlesData(
-                              topTitles: const AxisTitles(),
-                              rightTitles: const AxisTitles(),
-                              leftTitles: const AxisTitles(),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 28,
-                                  getTitlesWidget: (value, meta) {
-                                    final index = value.toInt();
-                                    if (index < 0 || index >= data.length) return const SizedBox.shrink();
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Text(_axisLabel(data[index].periodStart, dashboard.chartRange),
-                                          style: Theme.of(context).textTheme.bodySmall),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                            barGroups: [
-                              for (var i = 0; i < data.length; i++)
-                                BarChartGroupData(
-                                  x: i,
-                                  barRods: [
-                                    BarChartRodData(
-                                      toY: data[i].total,
-                                      width: 22,
-                                      borderRadius: BorderRadius.circular(4),
-                                      color: i == data.length - 1
-                                          ? AppColors.primary
-                                          : AppColors.primary.withValues(alpha: 0.28),
-                                    ),
-                                  ],
-                                ),
-                            ],
                           ),
                         ),
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(),
+                          rightTitles: const AxisTitles(),
+                          leftTitles: const AxisTitles(),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 28,
+                              getTitlesWidget: (value, meta) {
+                                final index = value.toInt();
+                                if (index < 0 || index >= points.length) return const SizedBox.shrink();
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(_axisLabel(points[index].periodStart, dashboard.range),
+                                      style: Theme.of(context).textTheme.bodySmall),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        barGroups: [
+                          for (var i = 0; i < points.length; i++)
+                            BarChartGroupData(
+                              x: i,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: points[i].total ?? 0,
+                                  width: 22,
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: i == points.length - 1
+                                      ? AppColors.primary
+                                      : AppColors.primary.withValues(alpha: 0.28),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -298,14 +300,8 @@ class _RevenueChartCard extends StatelessWidget {
     );
   }
 
-  String _titleFor(RevenueChartRange range) => switch (range) {
-        RevenueChartRange.days7 => 'Promet posljednjih 7 dana',
-        RevenueChartRange.days30 => 'Promet posljednjih 30 dana',
-        RevenueChartRange.year => 'Promet posljednjih godinu dana',
-      };
-
-  String _axisLabel(DateTime date, RevenueChartRange range) {
-    if (range == RevenueChartRange.year) {
+  String _axisLabel(DateTime date, DashboardRange range) {
+    if (range == DashboardRange.year) {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Avg', 'Sep', 'Okt', 'Nov', 'Dec'];
       return months[date.month - 1];
     }
@@ -315,15 +311,12 @@ class _RevenueChartCard extends StatelessWidget {
 }
 
 class _ActiveOrdersCard extends StatelessWidget {
-  const _ActiveOrdersCard();
+  const _ActiveOrdersCard({required this.data});
+
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
-    final orders = context.watch<OrdersProvider>();
-    final all = orders.board.values.expand((e) => e).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final preview = all.take(5).toList();
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -336,19 +329,17 @@ class _ActiveOrdersCard extends StatelessWidget {
                 Text('Aktivne narudžbe', style: Theme.of(context).textTheme.titleMedium),
                 TextButton(
                   onPressed: () => Navigator.of(context).pushReplacementNamed('/orders'),
-                  child: Text('Sve (${orders.activeCount})'),
+                  child: Text('Sve (${data.activeOrdersCount})'),
                 ),
               ],
             ),
-            if (orders.boardLoading && preview.isEmpty)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: LoadingView())
-            else if (preview.isEmpty)
+            if (data.activeOrders.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: EmptyView(message: 'Nema aktivnih narudžbi.', icon: Icons.receipt_long_outlined),
               )
             else
-              for (final order in preview)
+              for (final order in data.activeOrders.take(5))
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -360,8 +351,8 @@ class _ActiveOrdersCard extends StatelessWidget {
                             Text('#${order.number}', style: const TextStyle(fontWeight: FontWeight.w600)),
                             Text(
                               order.diningTableNumber != null
-                                  ? 'Sto ${order.diningTableNumber} · ${order.items.length} st.'
-                                  : 'Za ponijeti · ${order.items.length} st.',
+                                  ? 'Sto ${order.diningTableNumber} · ${order.itemCount} st.'
+                                  : 'Za ponijeti · ${order.itemCount} st.',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -378,10 +369,10 @@ class _ActiveOrdersCard extends StatelessWidget {
   }
 }
 
-class _ReservationsTodayCard extends StatelessWidget {
-  const _ReservationsTodayCard({required this.dashboard});
+class _ReservationsCard extends StatelessWidget {
+  const _ReservationsCard({required this.data});
 
-  final DashboardProvider dashboard;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
@@ -394,20 +385,20 @@ class _ReservationsTodayCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Rezervacije danas', style: Theme.of(context).textTheme.titleMedium),
+                Text('Rezervacije', style: Theme.of(context).textTheme.titleMedium),
                 TextButton(
                   onPressed: () => Navigator.of(context).pushReplacementNamed('/reservations'),
-                  child: Text('Sve (${dashboard.reservationsTodayCount})'),
+                  child: Text('Sve (${data.reservationsCount})'),
                 ),
               ],
             ),
-            if (dashboard.reservationsTodayPreview.isEmpty)
+            if (data.reservations.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: EmptyView(message: 'Nema rezervacija za danas.', icon: Icons.event_busy_outlined),
+                child: EmptyView(message: 'Nema rezervacija za odabrani period.', icon: Icons.event_busy_outlined),
               )
             else
-              for (final reservation in dashboard.reservationsTodayPreview)
+              for (final reservation in data.reservations.take(5))
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -423,7 +414,7 @@ class _ReservationsTodayCard extends StatelessWidget {
                           children: [
                             Text(reservation.userName, style: const TextStyle(fontWeight: FontWeight.w600)),
                             Text(
-                              '${formatTime(reservation.reservationAt)} · ${reservation.guests} os. · ${reservation.zoneName}',
+                              '${formatDateTime(reservation.reservationAt)} · ${reservation.guests} os. · ${reservation.zoneName}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -441,9 +432,9 @@ class _ReservationsTodayCard extends StatelessWidget {
 }
 
 class _LowStockCard extends StatelessWidget {
-  const _LowStockCard({required this.dashboard});
+  const _LowStockCard({required this.data});
 
-  final DashboardProvider dashboard;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
@@ -460,13 +451,13 @@ class _LowStockCard extends StatelessWidget {
                 Text('Upozorenja zaliha', style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
-            if (dashboard.lowStockPreview.isEmpty)
+            if (data.lowStockItems.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: EmptyView(message: 'Sve zalihe su iznad minimuma.', icon: Icons.check_circle_outline),
               )
             else
-              for (final item in dashboard.lowStockPreview)
+              for (final item in data.lowStockItems)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
@@ -475,14 +466,14 @@ class _LowStockCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(child: Text(item.name)),
                       Text(
-                        '${item.quantity.toStringAsFixed(item.quantity.truncateToDouble() == item.quantity ? 0 : 1)} '
-                        '${item.unitOfMeasureAbbreviation} / min ${item.minQuantity.toStringAsFixed(item.minQuantity.truncateToDouble() == item.minQuantity ? 0 : 1)} ${item.unitOfMeasureAbbreviation}',
+                        '${_formatQuantity(item.quantity)} ${item.unitOfMeasureAbbreviation} / '
+                        'min ${_formatQuantity(item.minQuantity)} ${item.unitOfMeasureAbbreviation}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
                 ),
-            if (dashboard.lowStockPreview.isNotEmpty)
+            if (data.lowStockItems.isNotEmpty)
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
@@ -495,16 +486,19 @@ class _LowStockCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatQuantity(double value) =>
+      value.truncateToDouble() == value ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
 }
 
-class _TopItemsTodayCard extends StatelessWidget {
-  const _TopItemsTodayCard({required this.dashboard});
+class _TopItemsCard extends StatelessWidget {
+  const _TopItemsCard({required this.data});
 
-  final DashboardProvider dashboard;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
-    final items = dashboard.topItemsToday;
+    final items = data.topItems;
     final maxQty = items.isEmpty ? 1 : items.map((e) => e.quantitySold).reduce((a, b) => a > b ? a : b);
 
     return Card(
@@ -513,10 +507,10 @@ class _TopItemsTodayCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Top jela danas', style: Theme.of(context).textTheme.titleMedium),
+            Text('Top jela', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             if (items.isEmpty)
-              const EmptyView(message: 'Još nema prodatih jela danas.', icon: Icons.restaurant_menu_outlined)
+              const EmptyView(message: 'Još nema prodatih jela u ovom periodu.', icon: Icons.restaurant_menu_outlined)
             else
               for (final item in items)
                 Padding(
