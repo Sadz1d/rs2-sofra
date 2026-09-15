@@ -5,7 +5,7 @@ namespace Sofra.API.Reports;
 
 public record ReservationStatusRow(string StatusLabel, int Count);
 
-public class ReservationsReportDocument(DateOnly from, DateOnly to, IReadOnlyList<ReservationStatusRow> rows) : IDocument
+public class ReservationsReportDocument(string restaurantName, DateOnly from, DateOnly to, IReadOnlyList<ReservationStatusRow> rows) : IDocument
 {
     public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
 
@@ -15,7 +15,7 @@ public class ReservationsReportDocument(DateOnly from, DateOnly to, IReadOnlyLis
         {
             page.Margin(30);
             page.Size(QuestPDF.Helpers.PageSizes.A4);
-            page.Header().Element(c => ReportHeader.Compose(c, "Pregled rezervacija po statusima", from, to));
+            page.Header().Element(c => ReportHeader.Compose(c, restaurantName, "Pregled rezervacija po statusima", from, to));
 
             page.Content().PaddingTop(10).Table(table =>
             {

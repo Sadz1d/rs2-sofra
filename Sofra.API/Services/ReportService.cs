@@ -1,15 +1,20 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
 using Sofra.API.Data;
 using Sofra.API.Enums;
 using Sofra.API.Exceptions;
+using Sofra.API.Options;
 using Sofra.API.Reports;
 using Sofra.API.Services.Interfaces;
 
 namespace Sofra.API.Services;
 
-public class ReportService(AppDbContext dbContext) : IReportService
+public class ReportService(AppDbContext dbContext, IOptions<RestaurantOptions> restaurantOptions) : IReportService
 {
+    private string RestaurantName => restaurantOptions.Value.Name;
+
+
     public async Task<byte[]> GenerateRevenueReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         var (fromUtc, toUtc) = ToRange(from, to);
@@ -24,7 +29,7 @@ public class ReportService(AppDbContext dbContext) : IReportService
 
         var rows = raw.Select(x => new RevenueReportRow(DateOnly.FromDateTime(x.Date), x.Count, x.Subtotal, x.Tax, x.Total)).ToList();
 
-        var document = new RevenueReportDocument(from, to, rows);
+        var document = new RevenueReportDocument(RestaurantName, from, to, rows);
         return document.GeneratePdf();
     }
 
@@ -48,7 +53,7 @@ public class ReportService(AppDbContext dbContext) : IReportService
 
         var rows = raw.Select(x => new TopItemRow(names.GetValueOrDefault(x.MenuItemId, string.Empty), x.Quantity, x.Revenue)).ToList();
 
-        var document = new TopItemsReportDocument(from, to, rows);
+        var document = new TopItemsReportDocument(RestaurantName, from, to, rows);
         return document.GeneratePdf();
     }
 
@@ -68,7 +73,7 @@ public class ReportService(AppDbContext dbContext) : IReportService
                 counts.FirstOrDefault(x => x.Status == status)?.Count ?? 0))
             .ToList();
 
-        var document = new ReservationsReportDocument(from, to, rows);
+        var document = new ReservationsReportDocument(RestaurantName, from, to, rows);
         return document.GeneratePdf();
     }
 
@@ -87,7 +92,7 @@ public class ReportService(AppDbContext dbContext) : IReportService
         }
 
         var data = new ReceiptData(
-            order.Number, order.CreatedAt, order.DiningTable?.Number,
+            RestaurantName, order.Number, order.CreatedAt, order.DiningTable?.Number,
             order.Items.Select(i => new ReceiptItemRow(i.MenuItem.Name, i.Quantity, i.UnitPrice, i.UnitPrice * i.Quantity)).ToList(),
             order.Subtotal, order.Discount, order.Tax, order.Total,
             order.Payment?.PaymentMethod.Name,

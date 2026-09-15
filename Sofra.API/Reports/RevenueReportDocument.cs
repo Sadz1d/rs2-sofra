@@ -5,7 +5,7 @@ namespace Sofra.API.Reports;
 
 public record RevenueReportRow(DateOnly Date, int OrderCount, decimal Subtotal, decimal Tax, decimal Total);
 
-public class RevenueReportDocument(DateOnly from, DateOnly to, IReadOnlyList<RevenueReportRow> rows) : IDocument
+public class RevenueReportDocument(string restaurantName, DateOnly from, DateOnly to, IReadOnlyList<RevenueReportRow> rows) : IDocument
 {
     public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
 
@@ -15,7 +15,7 @@ public class RevenueReportDocument(DateOnly from, DateOnly to, IReadOnlyList<Rev
         {
             page.Margin(30);
             page.Size(QuestPDF.Helpers.PageSizes.A4);
-            page.Header().Element(c => ReportHeader.Compose(c, "Izvještaj o prometu", from, to));
+            page.Header().Element(c => ReportHeader.Compose(c, restaurantName, "Izvještaj o prometu", from, to));
 
             page.Content().PaddingTop(10).Table(table =>
             {

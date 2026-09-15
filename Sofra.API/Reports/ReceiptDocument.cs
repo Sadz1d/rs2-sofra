@@ -6,7 +6,7 @@ namespace Sofra.API.Reports;
 public record ReceiptItemRow(string MenuItemName, int Quantity, decimal UnitPrice, decimal LineTotal);
 
 public record ReceiptData(
-    string OrderNumber, DateTime CreatedAt, int? DiningTableNumber,
+    string RestaurantName, string OrderNumber, DateTime CreatedAt, int? DiningTableNumber,
     IReadOnlyList<ReceiptItemRow> Items,
     decimal Subtotal, decimal Discount, decimal Tax, decimal Total,
     string? PaymentMethodName, bool IsPaid);
@@ -24,7 +24,7 @@ public class ReceiptDocument(ReceiptData data) : IDocument
 
             page.Header().Column(column =>
             {
-                column.Item().Text(ReportHeader.RestaurantName).FontSize(16).Bold();
+                column.Item().Text(data.RestaurantName).FontSize(16).Bold();
                 column.Item().Text($"Račun za narudžbu {data.OrderNumber}").FontSize(11);
                 column.Item().Text($"Datum: {data.CreatedAt:dd.MM.yyyy. HH:mm}").FontSize(9);
                 if (data.DiningTableNumber.HasValue)
@@ -94,7 +94,7 @@ public class ReceiptDocument(ReceiptData data) : IDocument
                 column.Item().Text(data.IsPaid ? "Status: PLAĆENO" : "Status: NEPLAĆENO").FontSize(9).Bold();
             });
 
-            page.Footer().AlignCenter().Text($"Hvala što ste izabrali {ReportHeader.RestaurantName}!").FontSize(9);
+            page.Footer().AlignCenter().Text($"Hvala što ste izabrali {data.RestaurantName}!").FontSize(9);
         });
     }
 }
