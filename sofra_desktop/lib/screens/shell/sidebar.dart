@@ -26,7 +26,12 @@ class AppSidebar extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
               child: Text(
                 'Sofra',
-                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             Expanded(

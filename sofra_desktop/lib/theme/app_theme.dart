@@ -10,6 +10,15 @@ class AppColors {
   static const success = Color(0xFF2E7D32);
 }
 
+/// Poppins za naslove (display/headline/title), Inter za tekst (body/label) -
+/// oba su lokalni asset fontovi u assets/fonts/, bez mreznog fetch-a pri pokretanju.
+class AppFonts {
+  const AppFonts._();
+
+  static const heading = 'Poppins';
+  static const body = 'Inter';
+}
+
 /// Jedan ThemeData za citavu aplikaciju - ekrani ne definisu vlastite boje ni stilove.
 class AppTheme {
   const AppTheme._();
@@ -29,10 +38,8 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,
-      textTheme: Typography.blackMountainView.apply(
-        bodyColor: AppColors.dark,
-        displayColor: AppColors.dark,
-      ),
+      fontFamily: AppFonts.body,
+      textTheme: _textTheme(AppColors.dark),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.dark,
@@ -95,6 +102,27 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+    );
+  }
+
+  static TextTheme _textTheme(Color bodyColor) {
+    final base = Typography.blackMountainView
+        .apply(bodyColor: bodyColor, displayColor: bodyColor)
+        .apply(fontFamily: AppFonts.body);
+
+    TextStyle? heading(TextStyle? style, FontWeight weight) =>
+        style?.copyWith(fontFamily: AppFonts.heading, fontWeight: weight);
+
+    return base.copyWith(
+      displayLarge: heading(base.displayLarge, FontWeight.w600),
+      displayMedium: heading(base.displayMedium, FontWeight.w600),
+      displaySmall: heading(base.displaySmall, FontWeight.w600),
+      headlineLarge: heading(base.headlineLarge, FontWeight.w600),
+      headlineMedium: heading(base.headlineMedium, FontWeight.w600),
+      headlineSmall: heading(base.headlineSmall, FontWeight.w600),
+      titleLarge: heading(base.titleLarge, FontWeight.w600),
+      titleMedium: heading(base.titleMedium, FontWeight.w500),
+      titleSmall: heading(base.titleSmall, FontWeight.w500),
     );
   }
 }

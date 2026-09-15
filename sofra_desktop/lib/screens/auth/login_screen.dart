@@ -55,7 +55,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'Sofra',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
