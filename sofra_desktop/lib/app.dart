@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/error/not_found_screen.dart';
-import 'screens/home/home_screen.dart';
+import 'screens/kitchen/kitchen_screen.dart';
+import 'screens/orders/orders_screen.dart';
 import 'screens/shell/auth_gate.dart';
 import 'screens/shell/coming_soon_screen.dart';
 import 'theme/app_theme.dart';
@@ -24,13 +26,6 @@ class SofraApp extends StatelessWidget {
   static Route<dynamic> _onGenerateRoute(RouteSettings settings) {
     final name = settings.name ?? '/';
 
-    if (name == '/') {
-      return MaterialPageRoute(
-        builder: (_) => const AuthGate(route: '/', child: HomeScreen()),
-        settings: settings,
-      );
-    }
-
     NavItem? navItem;
     for (final item in kNavItems) {
       if (item.route == name) {
@@ -46,9 +41,15 @@ class SofraApp extends StatelessWidget {
       );
     }
 
-    final resolvedTitle = navItem.label;
+    final content = switch (name) {
+      '/' => const DashboardScreen(),
+      '/orders' => const OrdersScreen(),
+      '/kitchen' => const KitchenScreen(),
+      _ => ComingSoonScreen(title: navItem.label),
+    };
+
     return MaterialPageRoute(
-      builder: (_) => AuthGate(route: name, child: ComingSoonScreen(title: resolvedTitle)),
+      builder: (_) => AuthGate(route: name, allowedRoles: navItem!.allowedRoles, child: content),
       settings: settings,
     );
   }

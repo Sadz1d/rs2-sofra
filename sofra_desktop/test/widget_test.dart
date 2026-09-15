@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import 'package:sofra_desktop/app.dart';
 import 'package:sofra_desktop/providers/auth_provider.dart';
+import 'package:sofra_desktop/providers/dashboard_provider.dart';
 import 'package:sofra_desktop/providers/notification_provider.dart';
+import 'package:sofra_desktop/providers/orders_provider.dart';
 import 'package:sofra_desktop/services/api_client.dart';
 import 'package:sofra_desktop/services/auth_service.dart';
 import 'package:sofra_desktop/services/signalr_service.dart';
@@ -25,6 +27,8 @@ void main() {
       apiClient: apiClient,
       signalRService: signalRService,
     );
+    final ordersProvider = OrdersProvider(apiClient: apiClient, signalRService: signalRService);
+    final dashboardProvider = DashboardProvider(apiClient: apiClient);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -33,6 +37,8 @@ void main() {
           Provider<SignalRService>.value(value: signalRService),
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
           ChangeNotifierProvider<NotificationProvider>.value(value: notificationProvider),
+          ChangeNotifierProvider<OrdersProvider>.value(value: ordersProvider),
+          ChangeNotifierProvider<DashboardProvider>.value(value: dashboardProvider),
         ],
         child: const SofraApp(),
       ),
